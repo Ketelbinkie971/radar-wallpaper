@@ -28,6 +28,8 @@ public class SettingsActivity extends Activity {
         render();
     }
 
+    @Override protected void onResume() { super.onResume(); if (prefs != null) render(); }
+
     private TextView text(String value, int size) {
         TextView v = new TextView(this);
         v.setText(value); v.setTextSize(size); v.setTextColor(Color.rgb(220,230,235));
@@ -42,8 +44,20 @@ public class SettingsActivity extends Activity {
         TextView intro = text("A quiet regional radar map that follows you. Your location stays on the phone and is used only to choose visible map tiles.", 15);
         intro.setTextColor(Color.rgb(155,171,180)); root.addView(intro);
 
-        Button location = new Button(this); location.setText("Allow location");
+        boolean foreground = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean background = android.os.Build.VERSION.SDK_INT < 29
+                || checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        TextView locationStatus = text("Location: " + (!foreground ? "not allowed" : background ? "allowed all the time" : "only while app is open"), 16);
+        locationStatus.setTextColor(background && foreground ? Color.rgb(130,190,165) : Color.rgb(210,175,105));
+        root.addView(locationStatus);
+
+        Button location = new Button(this); location.setText(foreground ? "Open location permission settings" : "Allow location");
         location.setOnClickListener(v -> requestLocation()); root.addView(location);
+        if (foreground && !background) {
+            TextView hint = text("On the next screen, choose Permissions → Location → Allow all the time. Android only shows that choice after ordinary location access has been granted.", 13);
+            hint.setTextColor(Color.rgb(155,171,180)); root.addView(hint);
+        }
 
         int currentZoom = prefs.getInt("zoom", 6);
         TextView zoomLabel = text("Regional scale: " + (currentZoom == 5 ? "wide" : currentZoom == 6 ? "regional" : "closer"), 16);
@@ -79,8 +93,20 @@ public class SettingsActivity extends Activity {
     }
 
     private void requestLocation() {
-        if (android.os.Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        boolean foreground = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        if (!foreground)
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 20);
-        else startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+        else if (android.os.Build.VERSION.SDK_INT == 29 && checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 21);
+        else {
+            Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+            startActivity(i);
+        }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        render();
     }
 }

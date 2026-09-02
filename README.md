@@ -1,11 +1,11 @@
 # Radar Wallpaper
 
-Minimal Android live wallpaper showing the latest RainViewer precipitation radar above a subdued OpenStreetMap map, centred on the device's last known location.
+Minimal Android live wallpaper showing the latest RainViewer precipitation radar above a RainViewer-inspired charcoal OpenStreetMap map, centred on the device's last known location.
 
 ## First run
 
 1. Open **Radar Wallpaper**.
-2. Tap **Allow location** and grant precise or approximate location.
+2. Tap **Allow location**, then use Android's app-permission screen to choose **Allow all the time**.
 3. Choose regional scale and opacity.
 4. Tap **Set live wallpaper**, preview, and apply.
 
