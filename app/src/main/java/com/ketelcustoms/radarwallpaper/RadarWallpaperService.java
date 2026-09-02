@@ -125,8 +125,9 @@ public class RadarWallpaperService extends WallpaperService {
 
         private Bitmap getBitmap(String url, boolean longCache) {
             Bitmap hit=cache.get(url); if(hit!=null)return hit;
-            File disk = longCache ? new File(tileCacheDir, cacheName(url)) : null;
+            File disk = null;
             try {
+                disk = longCache ? new File(tileCacheDir, cacheName(url)) : null;
                 if(disk!=null && disk.isFile() && System.currentTimeMillis()-disk.lastModified() < 7L*24*60*60_000) {
                     Bitmap b=BitmapFactory.decodeFile(disk.getAbsolutePath()); if(b!=null){cache.put(url,b);return b;}
                 }
