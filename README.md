@@ -7,7 +7,7 @@ Minimal Android live wallpaper showing the latest RainViewer precipitation radar
 1. Open **Radar Wallpaper**.
 2. Tap **Allow location**, then use Android's app-permission screen to choose **Allow all the time**.
 3. Choose regional scale and opacity.
-4. Choose Universal Blue or the calmer WU Storm-inspired radar palette.
+4. Choose Universal Blue, Muted WU Storm, classic WU Storm, or Night Signal.
 5. Tap **Set live wallpaper**, preview, and apply.
 
 If location permission is not granted, the wallpaper defaults to Copenhagen. Location stays on-device and is only converted into the tile coordinates needed for the visible map.
@@ -16,6 +16,7 @@ If location permission is not granted, the wallpaper defaults to Copenhagen. Loc
 
 - RainViewer's free public API is limited to zoom 7 and historical/latest radar frames.
 - Radar needs an internet connection; the base map is bundled and works offline.
+- The last radar tiles are cached on disk and shown immediately while a newer frame refreshes.
 - This first build is deliberately static between refreshes to minimise battery use.
 - RainViewer availability is best-effort.
 

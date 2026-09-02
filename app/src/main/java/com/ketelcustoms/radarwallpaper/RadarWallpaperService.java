@@ -12,6 +12,7 @@ import android.view.SurfaceHolder;
 import org.json.*;
 import java.io.*;
 import java.net.*;
+import java.security.MessageDigest;
 import java.util.*;
 
 public class RadarWallpaperService extends WallpaperService {
@@ -23,6 +24,7 @@ public class RadarWallpaperService extends WallpaperService {
             protected boolean removeEldestEntry(Map.Entry<String,Bitmap> e){return size()>35;}
         });
         private HandlerThread thread; private Handler worker;
+        private File radarCacheDir;
         private volatile Bitmap baseMap; private volatile boolean mapBusy;
         private List<List<float[]>> geography;
         private int surfaceWidth,surfaceHeight;
@@ -31,7 +33,14 @@ public class RadarWallpaperService extends WallpaperService {
         private SharedPreferences prefs; private LocationManager locations;
         private final Runnable refresh=new Runnable(){
             @Override public void run(){
-                try{loadRadarMetadata();requestBaseMap();drawFrame();}catch(Throwable ignored){drawFallback();}
+                try{
+                    requestBaseMap();
+                    drawFrame();
+                    String previousPath=radarPath;
+                    loadRadarMetadata();
+                    if(radarPath!=null&&!radarPath.equals(previousPath))drawFrame();
+                    trimDiskCache();
+                }catch(Throwable ignored){drawFallback();}
                 finally{if(visible&&worker!=null)worker.postDelayed(this,10*60_000L);}
             }
         };
@@ -40,6 +49,8 @@ public class RadarWallpaperService extends WallpaperService {
             super.onCreate(h);prefs=getSharedPreferences("radar",MODE_PRIVATE);
             thread=new HandlerThread("radar-wallpaper");thread.start();worker=new Handler(thread.getLooper());
             locations=(LocationManager)getSystemService(LOCATION_SERVICE);
+            radarCacheDir=new File(getCacheDir(),"radar-tiles");if(!radarCacheDir.exists())radarCacheDir.mkdirs();
+            radarHost=prefs.getString("radar_host",null);radarPath=prefs.getString("radar_path",null);
         }
         @Override public void onDestroy(){stopLocation();if(worker!=null)worker.removeCallbacksAndMessages(null);if(thread!=null)thread.quitSafely();super.onDestroy();}
         @Override public void onVisibilityChanged(boolean v){
@@ -63,7 +74,7 @@ public class RadarWallpaperService extends WallpaperService {
             }catch(Exception ignored){}
         }
         private void stopLocation(){try{if(locations!=null)locations.removeUpdates(this);}catch(Exception ignored){}}
-        @Override public void onLocationChanged(Location l){if(l!=null){lat=l.getLatitude();lon=l.getLongitude();cache.clear();baseMap=null;requestBaseMap();drawFrame();}}
+        @Override public void onLocationChanged(Location l){if(l!=null){lat=l.getLatitude();lon=l.getLongitude();baseMap=null;requestBaseMap();drawFrame();}}
         @Override public void onProviderEnabled(String p){} @Override public void onProviderDisabled(String p){} @Override public void onStatusChanged(String p,int s,Bundle b){}
 
         private void loadRadarMetadata(){
@@ -72,6 +83,7 @@ public class RadarWallpaperService extends WallpaperService {
                 JSONObject root=new JSONObject(readText("https://api.rainviewer.com/public/weather-maps.json"));
                 JSONArray frames=root.getJSONObject("radar").getJSONArray("past");
                 radarHost=root.getString("host");radarPath=frames.getJSONObject(frames.length()-1).getString("path");lastMeta=System.currentTimeMillis();
+                prefs.edit().putString("radar_host",radarHost).putString("radar_path",radarPath).apply();
             }catch(Exception ignored){}
         }
 
@@ -156,16 +168,46 @@ public class RadarWallpaperService extends WallpaperService {
         private Bitmap getBitmap(String url,String palette){
             String cacheKey=url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
+                File disk=new File(radarCacheDir,cacheName(cacheKey));
+                if(disk.isFile()){
+                    Bitmap saved=BitmapFactory.decodeFile(disk.getAbsolutePath());
+                    if(saved!=null){cache.put(cacheKey,saved);return saved;}
+                }
                 HttpURLConnection con=(HttpURLConnection)new URL(url).openConnection();con.setConnectTimeout(8000);con.setReadTimeout(12000);
-                con.setRequestProperty("User-Agent","RadarWallpaper/0.5 (personal live wallpaper)");
+                con.setRequestProperty("User-Agent","RadarWallpaper/0.7 (personal live wallpaper)");
                 Bitmap b;try(InputStream in=con.getInputStream()){b=BitmapFactory.decodeStream(in);}finally{con.disconnect();}
-                if(b!=null&&"wu".equals(palette))b=recolourWuStorm(b);
-                if(b!=null)cache.put(cacheKey,b);return b;
+                if(b!=null&&!"blue".equals(palette))b=recolourRadar(b,palette);
+                if(b!=null){
+                    cache.put(cacheKey,b);
+                    try(FileOutputStream out=new FileOutputStream(disk)){b.compress(Bitmap.CompressFormat.PNG,100,out);}
+                }
+                return b;
             }catch(Throwable e){return null;}
         }
-        private Bitmap recolourWuStorm(Bitmap source){
+        private String cacheName(String value)throws Exception{
+            byte[] bytes=MessageDigest.getInstance("SHA-256").digest(value.getBytes("UTF-8"));StringBuilder name=new StringBuilder();
+            for(byte b:bytes)name.append(String.format(Locale.US,"%02x",b));return name+".png";
+        }
+        private void trimDiskCache(){
+            try{
+                File[] files=radarCacheDir.listFiles();if(files==null||files.length<=80)return;
+                Arrays.sort(files,Comparator.comparingLong(File::lastModified).reversed());
+                for(int i=80;i<files.length;i++)files[i].delete();
+            }catch(Throwable ignored){}
+        }
+        private Bitmap recolourRadar(Bitmap source,String palette){
             Bitmap out=source.copy(Bitmap.Config.ARGB_8888,true);int w=out.getWidth(),h=out.getHeight();
             int[] pixels=new int[w*h];out.getPixels(pixels,0,w,0,0,w,h);
+            int[][] colours;
+            if("wu_classic".equals(palette))colours=new int[][]{
+                    {0,196,119},{0,163,92},{0,111,57},{255,188,0},
+                    {255,68,0},{239,0,20},{224,0,126}};
+            else if("night".equals(palette))colours=new int[][]{
+                    {78,112,111},{55,139,132},{35,103,99},{184,145,76},
+                    {188,88,70},{157,69,91},{119,72,119}};
+            else colours=new int[][]{
+                    {55,101,83},{40,128,91},{23,103,76},{190,154,52},
+                    {194,74,48},{172,43,72},{142,48,105}};
             for(int i=0;i<pixels.length;i++){
                 int c=pixels[i],a=Color.alpha(c);if(a==0)continue;
                 int r=Color.red(c),g=Color.green(c),b=Color.blue(c);double dbz;
@@ -177,14 +219,8 @@ public class RadarWallpaperService extends WallpaperService {
                 else if(b>g&&b>r){dbz=20+(163-g)*14.0/92.0;}
                 else if(r>70&&g>70&&b<180){dbz=Math.max(-5,15-(g-123)*.11);}
                 else continue;
-                int nr,ng,nb;
-                if(dbz<10){nr=55;ng=101;nb=83;}
-                else if(dbz<20){nr=40;ng=128;nb=91;}
-                else if(dbz<35){nr=23;ng=103;nb=76;}
-                else if(dbz<45){nr=190;ng=154;nb=52;}
-                else if(dbz<55){nr=194;ng=74;nb=48;}
-                else if(dbz<65){nr=172;ng=43;nb=72;}
-                else{nr=142;ng=48;nb=105;}
+                int band=dbz<10?0:dbz<20?1:dbz<35?2:dbz<45?3:dbz<55?4:dbz<65?5:6;
+                int nr=colours[band][0],ng=colours[band][1],nb=colours[band][2];
                 pixels[i]=Color.argb(a,nr,ng,nb);
             }
             out.setPixels(pixels,0,w,0,0,w,h);return out;

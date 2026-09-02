@@ -70,11 +70,12 @@ public class SettingsActivity extends Activity {
         SeekBar opacity = new SeekBar(this); opacity.setMax(70); opacity.setProgress(opacityValue - 30);
         opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); })); root.addView(opacity);
 
-        boolean wu = "wu".equals(prefs.getString("palette", "wu"));
-        TextView paletteLabel = text("Radar colours: " + (wu ? "Muted WU Storm" : "Universal Blue"), 16);
+        String paletteValue = prefs.getString("palette", "wu");
+        TextView paletteLabel = text("Radar colours: " + paletteName(paletteValue), 16);
         root.addView(paletteLabel);
-        Button palette = new Button(this); palette.setText(wu ? "Use Universal Blue" : "Use Muted WU Storm");
-        palette.setOnClickListener(v -> { prefs.edit().putString("palette", wu ? "blue" : "wu").apply(); render(); });
+        String nextPalette = nextPalette(paletteValue);
+        Button palette = new Button(this); palette.setText("Try " + paletteName(nextPalette));
+        palette.setOnClickListener(v -> { prefs.edit().putString("palette", nextPalette).apply(); render(); });
         root.addView(palette);
 
         Button apply = new Button(this); apply.setText("Set live wallpaper");
@@ -97,6 +98,20 @@ public class SettingsActivity extends Activity {
             public void onStartTrackingTouch(SeekBar b) {}
             public void onStopTrackingTouch(SeekBar b) { done.accept(b.getProgress()); }
         };
+    }
+
+    private String paletteName(String value) {
+        if ("blue".equals(value)) return "Universal Blue";
+        if ("wu_classic".equals(value)) return "WU Storm";
+        if ("night".equals(value)) return "Night Signal";
+        return "Muted WU Storm";
+    }
+
+    private String nextPalette(String value) {
+        if ("wu".equals(value)) return "wu_classic";
+        if ("wu_classic".equals(value)) return "night";
+        if ("night".equals(value)) return "blue";
+        return "wu";
     }
 
     private void requestLocation() {
