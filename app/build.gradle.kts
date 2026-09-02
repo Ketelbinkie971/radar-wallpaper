@@ -8,8 +8,8 @@ android {
         applicationId = "com.ketelcustoms.radarwallpaper"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "0.3"
     }
 
     buildTypes {
@@ -18,4 +18,8 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    implementation("org.maplibre.gl:android-sdk:11.11.0")
 }

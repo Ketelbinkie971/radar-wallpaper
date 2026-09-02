@@ -1,6 +1,6 @@
 # Radar Wallpaper
 
-Minimal Android live wallpaper showing the latest RainViewer precipitation radar above a RainViewer-inspired charcoal OpenStreetMap map, centred on the device's last known location.
+Minimal Android live wallpaper showing the latest RainViewer precipitation radar above a label-free, high-contrast OpenFreeMap vector map derived from OpenStreetMap data.
 
 ## First run
 
