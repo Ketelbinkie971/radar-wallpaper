@@ -1,6 +1,6 @@
 # Radar Wallpaper
 
-Minimal Android live wallpaper showing the latest RainViewer precipitation radar above a label-free, high-contrast OpenFreeMap vector map derived from OpenStreetMap data.
+Minimal Android live wallpaper showing the latest RainViewer precipitation radar above a label-free, high-contrast map rendered locally from Natural Earth data.
 
 ## First run
 
@@ -14,12 +14,12 @@ If location permission is not granted, the wallpaper defaults to Copenhagen. Loc
 ## Current constraints
 
 - RainViewer's free public API is limited to zoom 7 and historical/latest radar frames.
-- Map and radar need an internet connection.
+- Radar needs an internet connection; the base map is bundled and works offline.
 - This first build is deliberately static between refreshes to minimise battery use.
-- OpenStreetMap and RainViewer availability are best-effort.
+- RainViewer availability is best-effort.
 
 ## Build
 
 Open the folder in Android Studio (JDK 17), or run `./gradlew assembleDebug` after generating a Gradle wrapper.
 
-Weather data by RainViewer. Map © OpenStreetMap contributors.
+Weather data by RainViewer. Basemap geometry from Natural Earth (public domain).

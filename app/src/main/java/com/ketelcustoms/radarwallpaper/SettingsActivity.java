@@ -77,7 +77,7 @@ public class SettingsActivity extends Activity {
             startActivity(i);
         }); root.addView(apply);
 
-        TextView credit = text("Weather data by RainViewer  •  Map © OpenStreetMap contributors", 12);
+        TextView credit = text("Weather data by RainViewer", 12);
         credit.setGravity(Gravity.CENTER); credit.setTextColor(Color.rgb(115,135,145));
         credit.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.rainviewer.com/"))));
         root.addView(credit);
