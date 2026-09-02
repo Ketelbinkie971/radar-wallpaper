@@ -90,7 +90,7 @@ public class RadarWallpaperService extends WallpaperService {
                     int nx=((x%(1<<z))+(1<<z))%(1<<z);
                     float left=(float)(x*tile-(cx-w/2.0)),top=(float)(y*tile-(cy-h/2.0));
                     if(radarHost!=null&&radarPath!=null){
-                        Bitmap radar=getBitmap(radarHost+radarPath+"/256/"+z+"/"+nx+"/"+y+"/2/1_0.png");
+                        Bitmap radar=getBitmap(radarHost+radarPath+"/256/"+z+"/"+nx+"/"+y+"/2/1_0.png",prefs.getString("palette","wu"));
                         if(radar!=null){paint.setAlpha((int)(255*prefs.getInt("opacity",72)/100f));c.drawBitmap(radar,null,new RectF(left,top,left+tile,top+tile),paint);}
                     }
                 }
@@ -153,14 +153,41 @@ public class RadarWallpaperService extends WallpaperService {
             try{if(h==null||h.getSurface()==null||!h.getSurface().isValid())return;c=h.lockCanvas();if(c!=null)c.drawColor(Color.rgb(7,16,22));}
             catch(Throwable ignored){}finally{if(c!=null)try{h.unlockCanvasAndPost(c);}catch(Throwable ignored){}}
         }
-        private Bitmap getBitmap(String url){
-            Bitmap hit=cache.get(url);if(hit!=null)return hit;
+        private Bitmap getBitmap(String url,String palette){
+            String cacheKey=url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
                 HttpURLConnection con=(HttpURLConnection)new URL(url).openConnection();con.setConnectTimeout(8000);con.setReadTimeout(12000);
-                con.setRequestProperty("User-Agent","RadarWallpaper/0.4 (personal live wallpaper)");
+                con.setRequestProperty("User-Agent","RadarWallpaper/0.5 (personal live wallpaper)");
                 Bitmap b;try(InputStream in=con.getInputStream()){b=BitmapFactory.decodeStream(in);}finally{con.disconnect();}
-                if(b!=null)cache.put(url,b);return b;
+                if(b!=null&&"wu".equals(palette))b=recolourWuStorm(b);
+                if(b!=null)cache.put(cacheKey,b);return b;
             }catch(Throwable e){return null;}
+        }
+        private Bitmap recolourWuStorm(Bitmap source){
+            Bitmap out=source.copy(Bitmap.Config.ARGB_8888,true);int w=out.getWidth(),h=out.getHeight();
+            int[] pixels=new int[w*h];out.getPixels(pixels,0,w,0,0,w,h);
+            for(int i=0;i<pixels.length;i++){
+                int c=pixels[i],a=Color.alpha(c);if(a==0)continue;
+                int r=Color.red(c),g=Color.green(c),b=Color.blue(c);double dbz;
+                if(r>225&&g>225&&b>225){dbz=66;}
+                else if(b>180&&r>180){dbz=g>175?66:55+(170-g)*9.0/92.0;}
+                else if(r>220&&g>75&&b<80){dbz=35+(238-g)*9.0/109.0;}
+                else if(r>80&&g<90&&b<80){dbz=45+(255-r)*9.0/162.0;}
+                else if(b>g&&b>r&&g>=150){dbz=20-(g-163)*5.0/58.0;}
+                else if(b>g&&b>r){dbz=20+(163-g)*14.0/92.0;}
+                else if(r>70&&g>70&&b<180){dbz=Math.max(-5,15-(g-123)*.11);}
+                else continue;
+                int nr,ng,nb;
+                if(dbz<10){nr=55;ng=101;nb=83;}
+                else if(dbz<20){nr=40;ng=128;nb=91;}
+                else if(dbz<35){nr=23;ng=103;nb=76;}
+                else if(dbz<45){nr=190;ng=154;nb=52;}
+                else if(dbz<55){nr=194;ng=74;nb=48;}
+                else if(dbz<65){nr=172;ng=43;nb=72;}
+                else{nr=142;ng=48;nb=105;}
+                pixels[i]=Color.argb(a,nr,ng,nb);
+            }
+            out.setPixels(pixels,0,w,0,0,w,h);return out;
         }
         private String readText(String url)throws Exception{
             HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(8000);c.setReadTimeout(10000);
@@ -168,4 +195,3 @@ public class RadarWallpaperService extends WallpaperService {
         }
     }
 }
-

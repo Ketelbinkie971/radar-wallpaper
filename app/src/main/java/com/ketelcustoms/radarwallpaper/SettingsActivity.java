@@ -70,6 +70,13 @@ public class SettingsActivity extends Activity {
         SeekBar opacity = new SeekBar(this); opacity.setMax(70); opacity.setProgress(opacityValue - 30);
         opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); })); root.addView(opacity);
 
+        boolean wu = "wu".equals(prefs.getString("palette", "wu"));
+        TextView paletteLabel = text("Radar colours: " + (wu ? "Muted WU Storm" : "Universal Blue"), 16);
+        root.addView(paletteLabel);
+        Button palette = new Button(this); palette.setText(wu ? "Use Universal Blue" : "Use Muted WU Storm");
+        palette.setOnClickListener(v -> { prefs.edit().putString("palette", wu ? "blue" : "wu").apply(); render(); });
+        root.addView(palette);
+
         Button apply = new Button(this); apply.setText("Set live wallpaper");
         apply.setOnClickListener(v -> {
             Intent i = new Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER);
