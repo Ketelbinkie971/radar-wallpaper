@@ -109,7 +109,7 @@ public class RadarWallpaperService extends WallpaperService {
                     int nx=((x%(1<<z))+(1<<z))%(1<<z);
                     float left=(float)((x*tile-(cx-viewW/2.0))*scale),top=(float)((y*tile-(cy-viewH/2.0))*scale),drawTile=(float)(tile*scale);
                     if(radarHost!=null&&radarPath!=null){
-                        Bitmap radar=getBitmap(radarHost+radarPath+"/256/"+z+"/"+nx+"/"+y+"/2/1_0.png",prefs.getString("palette","wu"));
+                        Bitmap radar=getBitmap(radarHost+radarPath+"/256/"+z+"/"+nx+"/"+y+"/2/1_0.png",prefs.getString("palette","night"));
                         if(radar!=null){paint.setAlpha((int)(255*prefs.getInt("opacity",72)/100f));c.drawBitmap(radar,null,new RectF(left,top,left+drawTile,top+drawTile),paint);}
                     }
                 }
@@ -196,6 +196,7 @@ public class RadarWallpaperService extends WallpaperService {
             if("navy".equals(theme))return new int[]{Color.rgb(4,15,25),Color.rgb(8,28,42),Color.rgb(25,43,55),Color.rgb(38,59,70),Color.rgb(104,135,149)};
             if("forest".equals(theme))return new int[]{Color.rgb(7,18,19),Color.rgb(13,29,28),Color.rgb(32,48,43),Color.rgb(44,61,52),Color.rgb(111,133,119)};
             if("plum".equals(theme))return new int[]{Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)};
+            if("copper".equals(theme))return new int[]{Color.rgb(6,13,18),Color.rgb(15,24,28),Color.rgb(43,38,34),Color.rgb(61,49,40),Color.rgb(170,119,74)};
             return new int[]{Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(103,125,134)};
         }
 
@@ -245,6 +246,9 @@ public class RadarWallpaperService extends WallpaperService {
             else if("night".equals(palette))colours=new int[][]{
                     {78,112,111},{55,139,132},{35,103,99},{184,145,76},
                     {188,88,70},{157,69,91},{119,72,119}};
+            else if("polar".equals(palette))colours=new int[][]{
+                    {104,181,190},{72,155,190},{73,91,170},{204,155,64},
+                    {222,91,59},{211,50,99},{221,67,169}};
             else colours=new int[][]{
                     {55,101,83},{40,128,91},{23,103,76},{190,154,52},
                     {194,74,48},{172,43,72},{142,48,105}};

@@ -7,8 +7,7 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.Typeface;
+import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -77,24 +76,26 @@ public class SettingsActivity extends Activity {
         SeekBar opacity = new SeekBar(this); opacity.setMax(70); opacity.setProgress(opacityValue - 30);
         opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); })); root.addView(opacity);
 
-        addSpectrumSection(root, "RADAR COLOURS", "palette", prefs.getString("palette", "wu"),
-                new String[]{"blue","wu","wu_classic","night"},
-                new String[]{"Universal\nBlue","Muted WU\nStorm","WU\nStorm","KetelCalm"},
+        addSpectrumSection(root, "RADAR COLOURS", "palette", prefs.getString("palette", "night"),
+                new String[]{"night","blue","wu","wu_classic","polar"},
+                new String[]{"KetelCalm","Universal\nBlue","Muted WU\nStorm","WU\nStorm","Polar\nEmber"},
                 new int[][]{
+                        {Color.rgb(78,112,111),Color.rgb(55,139,132),Color.rgb(35,103,99),Color.rgb(184,145,76),Color.rgb(188,88,70),Color.rgb(119,72,119)},
                         {Color.rgb(136,221,238),Color.rgb(0,163,224),Color.rgb(0,71,104),Color.rgb(255,238,0),Color.rgb(255,68,0),Color.rgb(255,170,255)},
                         {Color.rgb(55,101,83),Color.rgb(40,128,91),Color.rgb(23,103,76),Color.rgb(190,154,52),Color.rgb(194,74,48),Color.rgb(142,48,105)},
                         {Color.rgb(0,196,119),Color.rgb(0,163,92),Color.rgb(0,111,57),Color.rgb(255,188,0),Color.rgb(255,68,0),Color.rgb(224,0,126)},
-                        {Color.rgb(78,112,111),Color.rgb(55,139,132),Color.rgb(35,103,99),Color.rgb(184,145,76),Color.rgb(188,88,70),Color.rgb(119,72,119)}
+                        {Color.rgb(104,181,190),Color.rgb(72,155,190),Color.rgb(73,91,170),Color.rgb(204,155,64),Color.rgb(222,91,59),Color.rgb(221,67,169)}
                 });
 
-        addSpectrumSection(root, "MAP COLOURS", "map_theme", prefs.getString("map_theme", "slate"),
-                new String[]{"slate","navy","forest","plum"},
-                new String[]{"Schagchel\nSlate","Midnight\nNavy","Forest\nCharcoal","Plum\nDusk"},
+        addMapPreviewSection(root, "MAP COLOURS", "map_theme", prefs.getString("map_theme", "slate"),
+                new String[]{"slate","navy","forest","plum","copper"},
+                new String[]{"Schagchel\nSlate","Midnight\nNavy","Forest\nCharcoal","Plum\nDusk","Copper\nNight"},
                 new int[][]{
                         {Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(103,125,134)},
                         {Color.rgb(4,15,25),Color.rgb(8,28,42),Color.rgb(25,43,55),Color.rgb(38,59,70),Color.rgb(104,135,149)},
                         {Color.rgb(7,18,19),Color.rgb(13,29,28),Color.rgb(32,48,43),Color.rgb(44,61,52),Color.rgb(111,133,119)},
-                        {Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)}
+                        {Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)},
+                        {Color.rgb(6,13,18),Color.rgb(15,24,28),Color.rgb(43,38,34),Color.rgb(61,49,40),Color.rgb(170,119,74)}
                 });
 
         Button apply = new Button(this); apply.setText("Set live wallpaper");
@@ -152,6 +153,68 @@ public class SettingsActivity extends Activity {
         GradientDrawable background=new GradientDrawable();background.setColor(active?Color.rgb(31,46,53):Color.TRANSPARENT);background.setCornerRadius(dp(9));card.setBackground(background);
         name.setTypeface(active?Typeface.DEFAULT_BOLD:Typeface.DEFAULT);name.setTextColor(active?Color.rgb(229,244,248):Color.rgb(155,171,180));
         spectrum.setStroke(dp(active?3:1),active?Color.rgb(226,244,249):Color.rgb(67,84,92));
+    }
+
+    private void addMapPreviewSection(LinearLayout root,String title,String preference,String selected,String[] keys,String[] names,int[][] colours) {
+        TextView heading=text(title,15);heading.setTypeface(Typeface.DEFAULT_BOLD);heading.setPadding(0,dp(22),0,dp(6));root.addView(heading);
+        LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout[] cards=new LinearLayout[keys.length];TextView[] labels=new TextView[keys.length];MapPreviewView[] previews=new MapPreviewView[keys.length];
+        for(int i=0;i<keys.length;i++) {
+            boolean active=keys[i].equals(selected);
+            LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER_HORIZONTAL);
+            card.setPadding(dp(3),dp(3),dp(3),dp(5));card.setClickable(true);
+            TextView name=text(names[i],11);name.setGravity(Gravity.CENTER);name.setMinLines(2);name.setMaxLines(2);
+            card.addView(name,new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(48)));
+            MapPreviewView preview=new MapPreviewView(colours[i]);
+            LinearLayout.LayoutParams previewParams=new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(122));previewParams.setMargins(dp(5),0,dp(5),dp(5));card.addView(preview,previewParams);
+            LinearLayout.LayoutParams cardParams=new LinearLayout.LayoutParams(0,dp(184),1f);cardParams.setMargins(dp(2),0,dp(2),0);row.addView(card,cardParams);
+            cards[i]=card;labels[i]=name;previews[i]=preview;styleMapCard(card,name,preview,active);
+        }
+        for(int i=0;i<keys.length;i++) {
+            final int chosen=i;
+            cards[i].setOnClickListener(v->{
+                prefs.edit().putString(preference,keys[chosen]).apply();
+                for(int j=0;j<cards.length;j++)styleMapCard(cards[j],labels[j],previews[j],j==chosen);
+            });
+        }
+        root.addView(row,new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(184)));
+    }
+
+    private void styleMapCard(LinearLayout card,TextView name,MapPreviewView preview,boolean active) {
+        GradientDrawable background=new GradientDrawable();background.setColor(active?Color.rgb(31,46,53):Color.TRANSPARENT);background.setCornerRadius(dp(9));card.setBackground(background);
+        name.setTypeface(active?Typeface.DEFAULT_BOLD:Typeface.DEFAULT);name.setTextColor(active?Color.rgb(229,244,248):Color.rgb(155,171,180));
+        preview.setActive(active);
+    }
+
+    private final class MapPreviewView extends View {
+        private final int[] theme;private boolean active;
+        private final float[][] zealand={
+                {12.569f,55.785f},{12.545f,55.656f},{12.321f,55.588f},{12.243f,55.538f},{12.215f,55.467f},{12.385f,55.386f},
+                {12.413f,55.286f},{11.654f,55.187f},{11.286f,55.204f},{11.171f,55.329f},{11.190f,55.466f},{11.121f,55.601f},{11.009f,55.644f},{10.979f,55.722f},
+                {11.322f,55.753f},{11.464f,55.879f},{11.475f,55.943f},{11.628f,55.957f},{11.696f,55.908f},{11.691f,55.729f},
+                {11.820f,55.698f},{11.935f,55.896f},{11.866f,55.968f},{12.219f,56.119f},{12.579f,56.064f},{12.608f,56.033f},
+                {12.525f,55.918f}
+        };
+        MapPreviewView(int[] colours){super(SettingsActivity.this);theme=colours;}
+        void setActive(boolean value){active=value;invalidate();}
+        @Override protected void onDraw(Canvas canvas){
+            super.onDraw(canvas);float w=getWidth(),h=getHeight(),radius=dp(7),inset=dp(active?3:1);
+            Path clip=new Path();clip.addRoundRect(new RectF(inset,inset,w-inset,h-inset),radius,radius,Path.Direction.CW);
+            int save=canvas.save();canvas.clipPath(clip);
+            Paint ocean=new Paint(Paint.ANTI_ALIAS_FLAG);ocean.setShader(new LinearGradient(0,0,0,h,theme[0],theme[1],Shader.TileMode.CLAMP));canvas.drawRect(0,0,w,h,ocean);
+            float minLon=10.85f,maxLon=12.75f,minLat=55.10f,maxLat=56.20f,cos=0.566f,pad=dp(8);
+            float geoW=(maxLon-minLon)*cos,geoH=maxLat-minLat,scale=Math.min((w-2*pad)/geoW,(h-2*pad)/geoH);
+            float left=(w-geoW*scale)/2f,top=(h-geoH*scale)/2f;Path landPath=new Path();
+            for(int i=0;i<zealand.length;i++){
+                float x=left+(zealand[i][0]-minLon)*cos*scale,y=top+(maxLat-zealand[i][1])*scale;
+                if(i==0)landPath.moveTo(x,y);else landPath.lineTo(x,y);
+            }
+            landPath.close();Paint land=new Paint(Paint.ANTI_ALIAS_FLAG);land.setShader(new LinearGradient(0,0,0,h,theme[2],theme[3],Shader.TileMode.CLAMP));canvas.drawPath(landPath,land);
+            Paint coast=new Paint(Paint.ANTI_ALIAS_FLAG);coast.setStyle(Paint.Style.STROKE);coast.setStrokeWidth(dp(1));coast.setColor(theme[4]);canvas.drawPath(landPath,coast);
+            canvas.restoreToCount(save);
+            Paint frame=new Paint(Paint.ANTI_ALIAS_FLAG);frame.setStyle(Paint.Style.STROKE);frame.setStrokeWidth(dp(active?3:1));frame.setColor(active?Color.rgb(226,244,249):Color.rgb(67,84,92));
+            canvas.drawRoundRect(new RectF(inset,inset,w-inset,h-inset),radius,radius,frame);
+        }
     }
 
     private int dp(int value) {
