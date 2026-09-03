@@ -207,7 +207,7 @@ public class RadarWallpaperService extends WallpaperService {
             catch(Throwable ignored){}finally{if(c!=null)try{h.unlockCanvasAndPost(c);}catch(Throwable ignored){}}
         }
         private Bitmap getBitmap(String url,String palette){
-            String cacheKey="gradient-v2|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
+            String cacheKey="gradient-v3|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
                 File disk=new File(radarCacheDir,cacheName(cacheKey));
                 if(disk.isFile()){
@@ -244,20 +244,20 @@ public class RadarWallpaperService extends WallpaperService {
                     {0,196,119},{0,163,92},{0,111,57},{255,188,0},
                     {255,68,0},{239,0,20},{224,0,126}};
             else if("night".equals(palette))colours=new int[][]{
-                    {78,112,111},{55,139,132},{35,103,99},{184,145,76},
-                    {188,88,70},{157,69,91},{119,72,119}};
+                    {82,111,109},{55,135,126},{37,101,94},{176,142,75},
+                    {181,94,65},{150,65,74},{105,58,83}};
             else if("lagoon".equals(palette))colours=new int[][]{
-                    {93,151,153},{56,151,173},{48,108,156},{86,83,145},
-                    {184,107,92},{196,70,103},{151,66,132}};
+                    {126,177,145},{93,169,111},{72,145,80},{183,174,68},
+                    {202,137,58},{193,83,75},{151,69,102}};
             else if("sunset".equals(palette))colours=new int[][]{
-                    {116,139,104},{82,143,117},{54,119,112},{190,156,69},
-                    {207,112,61},{188,66,70},{132,57,91}};
+                    {126,151,116},{91,127,98},{71,103,74},{183,153,78},
+                    {159,99,70},{126,61,65},{91,48,67}};
             else if("orchid".equals(palette))colours=new int[][]{
-                    {116,145,174},{91,125,176},{99,88,164},{171,102,150},
-                    {202,86,106},{194,55,84},{137,48,114}};
+                    {104,165,178},{68,150,166},{61,121,159},{111,153,72},
+                    {193,165,52},{199,86,69},{157,61,119}};
             else if("polar".equals(palette))colours=new int[][]{
-                    {104,181,190},{72,155,190},{73,91,170},{204,155,64},
-                    {222,91,59},{211,50,99},{221,67,169}};
+                    {128,195,202},{81,169,199},{72,111,181},{143,121,188},
+                    {206,119,139},{215,72,135},{191,70,171}};
             else colours=new int[][]{
                     {55,101,83},{40,128,91},{23,103,76},{190,154,52},
                     {194,74,48},{172,43,72},{142,48,105}};

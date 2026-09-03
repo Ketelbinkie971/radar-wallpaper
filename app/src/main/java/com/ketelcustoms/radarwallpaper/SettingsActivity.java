@@ -78,13 +78,13 @@ public class SettingsActivity extends Activity {
 
         addSpectrumSection(root, "RADAR COLOURS", "palette", prefs.getString("palette", "night"),
                 new String[]{"night","lagoon","sunset","orchid","polar"},
-                new String[]{"KetelCalm","Lagoon\nGlass","Saffron\nCurrent","Orchid\nPulse","CemstoClean"},
+                new String[]{"Ketel\nKater","Rens'\nCaipirinha","Krüters\nKlarinet","Ons-Low\nICQ","Cemsto\nClean"},
                 new int[][]{
-                        {Color.rgb(78,112,111),Color.rgb(55,139,132),Color.rgb(35,103,99),Color.rgb(184,145,76),Color.rgb(188,88,70),Color.rgb(157,69,91),Color.rgb(119,72,119)},
-                        {Color.rgb(93,151,153),Color.rgb(56,151,173),Color.rgb(48,108,156),Color.rgb(86,83,145),Color.rgb(184,107,92),Color.rgb(196,70,103),Color.rgb(151,66,132)},
-                        {Color.rgb(116,139,104),Color.rgb(82,143,117),Color.rgb(54,119,112),Color.rgb(190,156,69),Color.rgb(207,112,61),Color.rgb(188,66,70),Color.rgb(132,57,91)},
-                        {Color.rgb(116,145,174),Color.rgb(91,125,176),Color.rgb(99,88,164),Color.rgb(171,102,150),Color.rgb(202,86,106),Color.rgb(194,55,84),Color.rgb(137,48,114)},
-                        {Color.rgb(104,181,190),Color.rgb(72,155,190),Color.rgb(73,91,170),Color.rgb(204,155,64),Color.rgb(222,91,59),Color.rgb(211,50,99),Color.rgb(221,67,169)}
+                        {Color.rgb(82,111,109),Color.rgb(55,135,126),Color.rgb(37,101,94),Color.rgb(176,142,75),Color.rgb(181,94,65),Color.rgb(150,65,74),Color.rgb(105,58,83)},
+                        {Color.rgb(126,177,145),Color.rgb(93,169,111),Color.rgb(72,145,80),Color.rgb(183,174,68),Color.rgb(202,137,58),Color.rgb(193,83,75),Color.rgb(151,69,102)},
+                        {Color.rgb(126,151,116),Color.rgb(91,127,98),Color.rgb(71,103,74),Color.rgb(183,153,78),Color.rgb(159,99,70),Color.rgb(126,61,65),Color.rgb(91,48,67)},
+                        {Color.rgb(104,165,178),Color.rgb(68,150,166),Color.rgb(61,121,159),Color.rgb(111,153,72),Color.rgb(193,165,52),Color.rgb(199,86,69),Color.rgb(157,61,119)},
+                        {Color.rgb(128,195,202),Color.rgb(81,169,199),Color.rgb(72,111,181),Color.rgb(143,121,188),Color.rgb(206,119,139),Color.rgb(215,72,135),Color.rgb(191,70,171)}
                 });
 
         addMapPreviewSection(root, "MAP COLOURS", "map_theme", prefs.getString("map_theme", "slate"),
