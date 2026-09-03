@@ -7,7 +7,7 @@ Minimal Android live wallpaper showing the latest RainViewer precipitation radar
 1. Open **Radar Wallpaper**.
 2. Tap **Allow location**, then use Android's app-permission screen to choose **Allow all the time**.
 3. Choose regional scale and opacity.
-4. Choose Universal Blue, Muted WU Storm, classic WU Storm, or Night Signal.
+4. Choose a radar gradient—including KetelCalm—and a separate map gradient such as SchagchelSlate.
 5. Tap **Set live wallpaper**, preview, and apply.
 
 If location permission is not granted, the wallpaper defaults to Copenhagen. Location stays on-device and is only converted into the tile coordinates needed for the visible map.

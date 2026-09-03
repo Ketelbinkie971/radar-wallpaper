@@ -26,6 +26,7 @@ public class RadarWallpaperService extends WallpaperService {
         private HandlerThread thread; private Handler worker;
         private File radarCacheDir;
         private volatile Bitmap baseMap; private volatile boolean mapBusy;
+        private String renderedMapTheme; private int renderedMapZoom=-1;
         private List<List<float[]>> geography;
         private int surfaceWidth,surfaceHeight;
         private boolean visible; private double lat=55.6761,lon=12.5683;
@@ -112,15 +113,19 @@ public class RadarWallpaperService extends WallpaperService {
         }
 
         private void requestBaseMap(){
-            if(mapBusy||surfaceWidth<1||surfaceHeight<1||baseMap!=null)return;mapBusy=true;
+            String mapTheme=prefs.getString("map_theme","slate");int selectedZoom=prefs.getInt("zoom",6);
+            if(mapBusy||surfaceWidth<1||surfaceHeight<1)return;
+            if(baseMap!=null&&mapTheme.equals(renderedMapTheme)&&selectedZoom==renderedMapZoom)return;
+            mapBusy=true;
             try{
                 if(geography==null)geography=loadGeography();
                 int width=Math.min(surfaceWidth,1600),height=Math.max(1,Math.round(width*(surfaceHeight/(float)surfaceWidth)));
-                int zoom=prefs.getInt("zoom",6);double targetLat=lat,targetLon=lon;
-                Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);canvas.drawColor(Color.rgb(7,18,25));
+                int zoom=selectedZoom;double targetLat=lat,targetLon=lon;int[] theme=mapThemeColours(mapTheme);
+                Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);
+                Paint ocean=new Paint();ocean.setShader(new LinearGradient(0,0,0,height,theme[0],theme[1],Shader.TileMode.CLAMP));canvas.drawRect(0,0,width,height,ocean);
                 double world=256.0*(1<<zoom),cx=worldX(targetLon,world),cy=worldY(targetLat,world);
-                Paint land=new Paint(Paint.ANTI_ALIAS_FLAG);land.setStyle(Paint.Style.FILL);land.setColor(Color.rgb(37,53,60));
-                Paint border=new Paint(Paint.ANTI_ALIAS_FLAG);border.setStyle(Paint.Style.STROKE);border.setStrokeWidth(Math.max(1f,width/1100f));border.setColor(Color.rgb(103,125,134));border.setAlpha(210);
+                Paint land=new Paint(Paint.ANTI_ALIAS_FLAG);land.setStyle(Paint.Style.FILL);land.setShader(new LinearGradient(0,0,0,height,theme[2],theme[3],Shader.TileMode.CLAMP));
+                Paint border=new Paint(Paint.ANTI_ALIAS_FLAG);border.setStyle(Paint.Style.STROKE);border.setStrokeWidth(Math.max(1f,width/1100f));border.setColor(theme[4]);border.setAlpha(210);
                 for(List<float[]> polygon:geography){
                     Path path=new Path();path.setFillType(Path.FillType.EVEN_ODD);
                     for(float[] ring:polygon){
@@ -145,7 +150,7 @@ public class RadarWallpaperService extends WallpaperService {
                     }
                     canvas.drawPath(path,land);canvas.drawPath(path,border);
                 }
-                baseMap=bitmap;
+                baseMap=bitmap;renderedMapTheme=mapTheme;renderedMapZoom=zoom;
             }catch(Throwable ignored){baseMap=null;}finally{mapBusy=false;drawFrame();}
         }
 
@@ -169,6 +174,12 @@ public class RadarWallpaperService extends WallpaperService {
 
         private double worldX(double longitude,double world){return(longitude+180.0)/360.0*world;}
         private double worldY(double latitude,double world){double s=Math.sin(Math.toRadians(Math.max(-85.05,Math.min(85.05,latitude))));return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*world;}
+        private int[] mapThemeColours(String theme){
+            if("navy".equals(theme))return new int[]{Color.rgb(4,15,25),Color.rgb(8,28,42),Color.rgb(25,43,55),Color.rgb(38,59,70),Color.rgb(104,135,149)};
+            if("forest".equals(theme))return new int[]{Color.rgb(7,18,19),Color.rgb(13,29,28),Color.rgb(32,48,43),Color.rgb(44,61,52),Color.rgb(111,133,119)};
+            if("plum".equals(theme))return new int[]{Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)};
+            return new int[]{Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(103,125,134)};
+        }
 
         private void drawFallback(){
             SurfaceHolder h=getSurfaceHolder();Canvas c=null;
@@ -176,7 +187,7 @@ public class RadarWallpaperService extends WallpaperService {
             catch(Throwable ignored){}finally{if(c!=null)try{h.unlockCanvasAndPost(c);}catch(Throwable ignored){}}
         }
         private Bitmap getBitmap(String url,String palette){
-            String cacheKey=url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
+            String cacheKey="gradient-v1|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
                 File disk=new File(radarCacheDir,cacheName(cacheKey));
                 if(disk.isFile()){
@@ -184,7 +195,7 @@ public class RadarWallpaperService extends WallpaperService {
                     if(saved!=null){cache.put(cacheKey,saved);return saved;}
                 }
                 HttpURLConnection con=(HttpURLConnection)new URL(url).openConnection();con.setConnectTimeout(8000);con.setReadTimeout(12000);
-                con.setRequestProperty("User-Agent","RadarWallpaper/0.7 (personal live wallpaper)");
+                con.setRequestProperty("User-Agent","RadarWallpaper/0.9 (personal live wallpaper)");
                 Bitmap b;try(InputStream in=con.getInputStream()){b=BitmapFactory.decodeStream(in);}finally{con.disconnect();}
                 if(b!=null&&!"blue".equals(palette))b=recolourRadar(b,palette);
                 if(b!=null){
@@ -218,6 +229,7 @@ public class RadarWallpaperService extends WallpaperService {
             else colours=new int[][]{
                     {55,101,83},{40,128,91},{23,103,76},{190,154,52},
                     {194,74,48},{172,43,72},{142,48,105}};
+            double[] levels={-5,10,20,35,45,55,65};
             for(int i=0;i<pixels.length;i++){
                 int c=pixels[i],a=Color.alpha(c);if(a==0)continue;
                 int r=Color.red(c),g=Color.green(c),b=Color.blue(c);double dbz;
@@ -229,8 +241,12 @@ public class RadarWallpaperService extends WallpaperService {
                 else if(b>g&&b>r){dbz=20+(163-g)*14.0/92.0;}
                 else if(r>70&&g>70&&b<180){dbz=Math.max(-5,15-(g-123)*.11);}
                 else continue;
-                int band=dbz<10?0:dbz<20?1:dbz<35?2:dbz<45?3:dbz<55?4:dbz<65?5:6;
-                int nr=colours[band][0],ng=colours[band][1],nb=colours[band][2];
+                int upper=1;
+                while(upper<levels.length-1&&dbz>levels[upper])upper++;
+                int lower=upper-1;double amount=Math.max(0,Math.min(1,(dbz-levels[lower])/(levels[upper]-levels[lower])));
+                int nr=(int)Math.round(colours[lower][0]+(colours[upper][0]-colours[lower][0])*amount);
+                int ng=(int)Math.round(colours[lower][1]+(colours[upper][1]-colours[lower][1])*amount);
+                int nb=(int)Math.round(colours[lower][2]+(colours[upper][2]-colours[lower][2])*amount);
                 pixels[i]=Color.argb(a,nr,ng,nb);
             }
             out.setPixels(pixels,0,w,0,0,w,h);return out;

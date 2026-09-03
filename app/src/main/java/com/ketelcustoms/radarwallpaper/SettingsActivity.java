@@ -16,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 public class SettingsActivity extends Activity {
@@ -39,6 +40,10 @@ public class SettingsActivity extends Activity {
     private void render() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL); root.setPadding(48,48,48,32);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(48, 48 + insets.getSystemWindowInsetTop(), 48, 32 + insets.getSystemWindowInsetBottom());
+            return insets;
+        });
         root.setBackgroundColor(Color.rgb(11,15,18));
         root.addView(text("RADAR WALLPAPER", 25));
         TextView intro = text("A quiet regional radar map that follows you. Your location stays on the phone and is used only to choose visible map tiles.", 15);
@@ -78,6 +83,14 @@ public class SettingsActivity extends Activity {
         palette.setOnClickListener(v -> { prefs.edit().putString("palette", nextPalette).apply(); render(); });
         root.addView(palette);
 
+        String mapValue = prefs.getString("map_theme", "slate");
+        TextView mapLabel = text("Map colours: " + mapThemeName(mapValue), 16);
+        root.addView(mapLabel);
+        String nextMap = nextMapTheme(mapValue);
+        Button mapTheme = new Button(this); mapTheme.setText("Try " + mapThemeName(nextMap));
+        mapTheme.setOnClickListener(v -> { prefs.edit().putString("map_theme", nextMap).apply(); render(); });
+        root.addView(mapTheme);
+
         Button apply = new Button(this); apply.setText("Set live wallpaper");
         apply.setOnClickListener(v -> {
             Intent i = new Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER);
@@ -89,7 +102,10 @@ public class SettingsActivity extends Activity {
         credit.setGravity(Gravity.CENTER); credit.setTextColor(Color.rgb(115,135,145));
         credit.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.rainviewer.com/"))));
         root.addView(credit);
-        setContentView(root);
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true); scroll.addView(root);
+        setContentView(scroll);
+        root.requestApplyInsets();
     }
 
     private SeekBar.OnSeekBarChangeListener listener(java.util.function.IntConsumer done) {
@@ -103,7 +119,7 @@ public class SettingsActivity extends Activity {
     private String paletteName(String value) {
         if ("blue".equals(value)) return "Universal Blue";
         if ("wu_classic".equals(value)) return "WU Storm";
-        if ("night".equals(value)) return "Night Signal";
+        if ("night".equals(value)) return "KetelCalm";
         return "Muted WU Storm";
     }
 
@@ -112,6 +128,20 @@ public class SettingsActivity extends Activity {
         if ("wu_classic".equals(value)) return "night";
         if ("night".equals(value)) return "blue";
         return "wu";
+    }
+
+    private String mapThemeName(String value) {
+        if ("navy".equals(value)) return "Midnight Navy";
+        if ("forest".equals(value)) return "Forest Charcoal";
+        if ("plum".equals(value)) return "Plum Dusk";
+        return "SchagchelSlate";
+    }
+
+    private String nextMapTheme(String value) {
+        if ("slate".equals(value)) return "navy";
+        if ("navy".equals(value)) return "forest";
+        if ("forest".equals(value)) return "plum";
+        return "slate";
     }
 
     private void requestLocation() {
