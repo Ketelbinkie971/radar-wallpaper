@@ -194,9 +194,9 @@ public class RadarWallpaperService extends WallpaperService {
         private double worldY(double latitude,double world){double s=Math.sin(Math.toRadians(Math.max(-85.05,Math.min(85.05,latitude))));return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*world;}
         private int[] mapThemeColours(String theme){
             if("navy".equals(theme))return new int[]{Color.rgb(3,14,24),Color.rgb(7,25,38),Color.rgb(24,42,51),Color.rgb(34,57,63),Color.rgb(71,208,204)};
-            if("forest".equals(theme))return new int[]{Color.rgb(7,18,19),Color.rgb(13,29,28),Color.rgb(32,48,43),Color.rgb(44,61,52),Color.rgb(111,133,119)};
+            if("forest".equals(theme))return new int[]{Color.rgb(12,16,14),Color.rgb(23,29,18),Color.rgb(49,48,24),Color.rgb(72,69,27),Color.rgb(219,196,74)};
             if("plum".equals(theme))return new int[]{Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)};
-            if("copper".equals(theme))return new int[]{Color.rgb(6,13,18),Color.rgb(15,24,28),Color.rgb(43,38,34),Color.rgb(61,49,40),Color.rgb(170,119,74)};
+            if("copper".equals(theme))return new int[]{Color.rgb(3,19,18),Color.rgb(7,31,27),Color.rgb(52,39,27),Color.rgb(76,52,31),Color.rgb(209,134,55)};
             return new int[]{Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(103,125,134)};
         }
 
