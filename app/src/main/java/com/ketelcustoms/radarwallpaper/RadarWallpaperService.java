@@ -197,7 +197,7 @@ public class RadarWallpaperService extends WallpaperService {
             if("forest".equals(theme))return new int[]{Color.rgb(12,16,14),Color.rgb(23,29,18),Color.rgb(49,48,24),Color.rgb(72,69,27),Color.rgb(219,196,74)};
             if("plum".equals(theme))return new int[]{Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)};
             if("copper".equals(theme))return new int[]{Color.rgb(3,19,18),Color.rgb(7,31,27),Color.rgb(52,39,27),Color.rgb(76,52,31),Color.rgb(209,134,55)};
-            return new int[]{Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(103,125,134)};
+            return new int[]{Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(239,58,66)};
         }
 
         private void drawFallback(){
@@ -207,7 +207,7 @@ public class RadarWallpaperService extends WallpaperService {
             catch(Throwable ignored){}finally{if(c!=null)try{h.unlockCanvasAndPost(c);}catch(Throwable ignored){}}
         }
         private Bitmap getBitmap(String url,String palette){
-            String cacheKey="gradient-v3|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
+            String cacheKey="gradient-v4|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
                 File disk=new File(radarCacheDir,cacheName(cacheKey));
                 if(disk.isFile()){
@@ -247,17 +247,17 @@ public class RadarWallpaperService extends WallpaperService {
                     {82,111,109},{55,135,126},{37,101,94},{176,142,75},
                     {181,94,65},{150,65,74},{105,58,83}};
             else if("lagoon".equals(palette))colours=new int[][]{
-                    {126,177,145},{93,169,111},{72,145,80},{183,174,68},
-                    {202,137,58},{193,83,75},{151,69,102}};
+                    {91,145,117},{112,174,100},{151,191,79},{194,207,91},
+                    {222,220,126},{236,230,165},{248,241,205}};
             else if("sunset".equals(palette))colours=new int[][]{
-                    {126,151,116},{91,127,98},{71,103,74},{183,153,78},
-                    {159,99,70},{126,61,65},{91,48,67}};
+                    {112,128,103},{139,134,83},{174,143,73},{190,157,92},
+                    {159,104,72},{120,70,60},{79,46,50}};
             else if("orchid".equals(palette))colours=new int[][]{
-                    {104,165,178},{68,150,166},{61,121,159},{111,153,72},
-                    {193,165,52},{199,86,69},{157,61,119}};
+                    {115,101,154},{128,83,174},{151,65,177},{181,62,166},
+                    {205,64,145},{225,76,131},{241,116,153}};
             else if("polar".equals(palette))colours=new int[][]{
-                    {128,195,202},{81,169,199},{72,111,181},{143,121,188},
-                    {206,119,139},{215,72,135},{191,70,171}};
+                    {112,130,143},{137,162,178},{166,190,207},{177,184,218},
+                    {194,184,223},{220,207,231},{246,240,239}};
             else colours=new int[][]{
                     {55,101,83},{40,128,91},{23,103,76},{190,154,52},
                     {194,74,48},{172,43,72},{142,48,105}};
