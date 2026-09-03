@@ -77,22 +77,22 @@ public class SettingsActivity extends Activity {
         opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); })); root.addView(opacity);
 
         addSpectrumSection(root, "RADAR COLOURS", "palette", prefs.getString("palette", "night"),
-                new String[]{"night","blue","wu","wu_classic","polar"},
-                new String[]{"KetelCalm","Universal\nBlue","Muted WU\nStorm","WU\nStorm","Polar\nEmber"},
+                new String[]{"night","lagoon","sunset","orchid","polar"},
+                new String[]{"KetelCalm","Lagoon\nGlass","Saffron\nCurrent","Orchid\nPulse","CemstoClean"},
                 new int[][]{
-                        {Color.rgb(78,112,111),Color.rgb(55,139,132),Color.rgb(35,103,99),Color.rgb(184,145,76),Color.rgb(188,88,70),Color.rgb(119,72,119)},
-                        {Color.rgb(136,221,238),Color.rgb(0,163,224),Color.rgb(0,71,104),Color.rgb(255,238,0),Color.rgb(255,68,0),Color.rgb(255,170,255)},
-                        {Color.rgb(55,101,83),Color.rgb(40,128,91),Color.rgb(23,103,76),Color.rgb(190,154,52),Color.rgb(194,74,48),Color.rgb(142,48,105)},
-                        {Color.rgb(0,196,119),Color.rgb(0,163,92),Color.rgb(0,111,57),Color.rgb(255,188,0),Color.rgb(255,68,0),Color.rgb(224,0,126)},
-                        {Color.rgb(104,181,190),Color.rgb(72,155,190),Color.rgb(73,91,170),Color.rgb(204,155,64),Color.rgb(222,91,59),Color.rgb(221,67,169)}
+                        {Color.rgb(78,112,111),Color.rgb(55,139,132),Color.rgb(35,103,99),Color.rgb(184,145,76),Color.rgb(188,88,70),Color.rgb(157,69,91),Color.rgb(119,72,119)},
+                        {Color.rgb(93,151,153),Color.rgb(56,151,173),Color.rgb(48,108,156),Color.rgb(86,83,145),Color.rgb(184,107,92),Color.rgb(196,70,103),Color.rgb(151,66,132)},
+                        {Color.rgb(116,139,104),Color.rgb(82,143,117),Color.rgb(54,119,112),Color.rgb(190,156,69),Color.rgb(207,112,61),Color.rgb(188,66,70),Color.rgb(132,57,91)},
+                        {Color.rgb(116,145,174),Color.rgb(91,125,176),Color.rgb(99,88,164),Color.rgb(171,102,150),Color.rgb(202,86,106),Color.rgb(194,55,84),Color.rgb(137,48,114)},
+                        {Color.rgb(104,181,190),Color.rgb(72,155,190),Color.rgb(73,91,170),Color.rgb(204,155,64),Color.rgb(222,91,59),Color.rgb(211,50,99),Color.rgb(221,67,169)}
                 });
 
         addMapPreviewSection(root, "MAP COLOURS", "map_theme", prefs.getString("map_theme", "slate"),
                 new String[]{"slate","navy","forest","plum","copper"},
-                new String[]{"Schagchel\nSlate","Midnight\nNavy","Forest\nCharcoal","Plum\nDusk","Copper\nNight"},
+                new String[]{"Schagchel\nSlate","Spaarne\nControl","Forest\nCharcoal","Plum\nDusk","Copper\nNight"},
                 new int[][]{
                         {Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(103,125,134)},
-                        {Color.rgb(4,15,25),Color.rgb(8,28,42),Color.rgb(25,43,55),Color.rgb(38,59,70),Color.rgb(104,135,149)},
+                        {Color.rgb(3,14,24),Color.rgb(7,25,38),Color.rgb(24,42,51),Color.rgb(34,57,63),Color.rgb(71,208,204)},
                         {Color.rgb(7,18,19),Color.rgb(13,29,28),Color.rgb(32,48,43),Color.rgb(44,61,52),Color.rgb(111,133,119)},
                         {Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)},
                         {Color.rgb(6,13,18),Color.rgb(15,24,28),Color.rgb(43,38,34),Color.rgb(61,49,40),Color.rgb(170,119,74)}

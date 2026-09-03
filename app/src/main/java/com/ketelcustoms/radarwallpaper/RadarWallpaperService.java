@@ -193,7 +193,7 @@ public class RadarWallpaperService extends WallpaperService {
         private double worldX(double longitude,double world){return(longitude+180.0)/360.0*world;}
         private double worldY(double latitude,double world){double s=Math.sin(Math.toRadians(Math.max(-85.05,Math.min(85.05,latitude))));return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*world;}
         private int[] mapThemeColours(String theme){
-            if("navy".equals(theme))return new int[]{Color.rgb(4,15,25),Color.rgb(8,28,42),Color.rgb(25,43,55),Color.rgb(38,59,70),Color.rgb(104,135,149)};
+            if("navy".equals(theme))return new int[]{Color.rgb(3,14,24),Color.rgb(7,25,38),Color.rgb(24,42,51),Color.rgb(34,57,63),Color.rgb(71,208,204)};
             if("forest".equals(theme))return new int[]{Color.rgb(7,18,19),Color.rgb(13,29,28),Color.rgb(32,48,43),Color.rgb(44,61,52),Color.rgb(111,133,119)};
             if("plum".equals(theme))return new int[]{Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)};
             if("copper".equals(theme))return new int[]{Color.rgb(6,13,18),Color.rgb(15,24,28),Color.rgb(43,38,34),Color.rgb(61,49,40),Color.rgb(170,119,74)};
@@ -207,7 +207,7 @@ public class RadarWallpaperService extends WallpaperService {
             catch(Throwable ignored){}finally{if(c!=null)try{h.unlockCanvasAndPost(c);}catch(Throwable ignored){}}
         }
         private Bitmap getBitmap(String url,String palette){
-            String cacheKey="gradient-v1|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
+            String cacheKey="gradient-v2|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
                 File disk=new File(radarCacheDir,cacheName(cacheKey));
                 if(disk.isFile()){
@@ -217,7 +217,7 @@ public class RadarWallpaperService extends WallpaperService {
                 HttpURLConnection con=(HttpURLConnection)new URL(url).openConnection();con.setConnectTimeout(8000);con.setReadTimeout(12000);
                 con.setRequestProperty("User-Agent","RadarWallpaper/0.12 (personal live wallpaper)");
                 Bitmap b;try(InputStream in=con.getInputStream()){b=BitmapFactory.decodeStream(in);}finally{con.disconnect();}
-                if(b!=null&&!"blue".equals(palette))b=recolourRadar(b,palette);
+                if(b!=null)b=recolourRadar(b,palette);
                 if(b!=null){
                     cache.put(cacheKey,b);
                     try(FileOutputStream out=new FileOutputStream(disk)){b.compress(Bitmap.CompressFormat.PNG,100,out);}
@@ -246,6 +246,15 @@ public class RadarWallpaperService extends WallpaperService {
             else if("night".equals(palette))colours=new int[][]{
                     {78,112,111},{55,139,132},{35,103,99},{184,145,76},
                     {188,88,70},{157,69,91},{119,72,119}};
+            else if("lagoon".equals(palette))colours=new int[][]{
+                    {93,151,153},{56,151,173},{48,108,156},{86,83,145},
+                    {184,107,92},{196,70,103},{151,66,132}};
+            else if("sunset".equals(palette))colours=new int[][]{
+                    {116,139,104},{82,143,117},{54,119,112},{190,156,69},
+                    {207,112,61},{188,66,70},{132,57,91}};
+            else if("orchid".equals(palette))colours=new int[][]{
+                    {116,145,174},{91,125,176},{99,88,164},{171,102,150},
+                    {202,86,106},{194,55,84},{137,48,114}};
             else if("polar".equals(palette))colours=new int[][]{
                     {104,181,190},{72,155,190},{73,91,170},{204,155,64},
                     {222,91,59},{211,50,99},{221,67,169}};
