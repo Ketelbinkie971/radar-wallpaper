@@ -17,6 +17,7 @@ If location permission is not granted, the wallpaper defaults to Copenhagen. Loc
 - RainViewer's free public API is limited to zoom 7 and historical/latest radar frames.
 - Radar needs an internet connection; the base map is bundled and works offline.
 - The last radar tiles are cached on disk and shown immediately while a newer frame refreshes.
+- Country polygons are unwrapped across the international date line to prevent map-fill seams.
 - This first build is deliberately static between refreshes to minimise battery use.
 - RainViewer availability is best-effort.
 

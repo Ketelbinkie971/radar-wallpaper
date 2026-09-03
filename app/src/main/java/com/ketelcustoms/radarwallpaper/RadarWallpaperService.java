@@ -124,9 +124,19 @@ public class RadarWallpaperService extends WallpaperService {
                 for(List<float[]> polygon:geography){
                     Path path=new Path();path.setFillType(Path.FillType.EVEN_ODD);
                     for(float[] ring:polygon){
+                        int pointCount=ring.length/2;if(pointCount<3)continue;
+                        double[] unwrappedX=new double[pointCount];
+                        unwrappedX[0]=worldX(ring[0],world);double sumX=unwrappedX[0];
+                        for(int point=1;point<pointCount;point++){
+                            double x=worldX(ring[point*2],world),previous=unwrappedX[point-1];
+                            while(x-previous>world/2)x-=world;
+                            while(x-previous<-world/2)x+=world;
+                            unwrappedX[point]=x;sumX+=x;
+                        }
+                        double wholeRingShift=Math.rint((cx-sumX/pointCount)/world)*world;
                         boolean started=false;
-                        for(int i=0;i<ring.length;i+=2){
-                            double x=worldX(ring[i],world);while(x-cx>world/2)x-=world;while(x-cx<-world/2)x+=world;
+                        for(int point=0;point<pointCount;point++){
+                            int i=point*2;double x=unwrappedX[point]+wholeRingShift;
                             float sx=(float)((x-cx)*width/surfaceWidth+width/2.0);
                             float sy=(float)((worldY(ring[i+1],world)-cy)*height/surfaceHeight+height/2.0);
                             if(!started){path.moveTo(sx,sy);started=true;}else path.lineTo(sx,sy);
