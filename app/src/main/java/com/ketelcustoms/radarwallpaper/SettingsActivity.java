@@ -8,6 +8,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -75,21 +77,25 @@ public class SettingsActivity extends Activity {
         SeekBar opacity = new SeekBar(this); opacity.setMax(70); opacity.setProgress(opacityValue - 30);
         opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); })); root.addView(opacity);
 
-        String paletteValue = prefs.getString("palette", "wu");
-        TextView paletteLabel = text("Radar colours: " + paletteName(paletteValue), 16);
-        root.addView(paletteLabel);
-        String nextPalette = nextPalette(paletteValue);
-        Button palette = new Button(this); palette.setText("Try " + paletteName(nextPalette));
-        palette.setOnClickListener(v -> { prefs.edit().putString("palette", nextPalette).apply(); render(); });
-        root.addView(palette);
+        addSpectrumSection(root, "RADAR COLOURS", "palette", prefs.getString("palette", "wu"),
+                new String[]{"blue","wu","wu_classic","night"},
+                new String[]{"Universal\nBlue","Muted WU\nStorm","WU\nStorm","KetelCalm"},
+                new int[][]{
+                        {Color.rgb(136,221,238),Color.rgb(0,163,224),Color.rgb(0,71,104),Color.rgb(255,238,0),Color.rgb(255,68,0),Color.rgb(255,170,255)},
+                        {Color.rgb(55,101,83),Color.rgb(40,128,91),Color.rgb(23,103,76),Color.rgb(190,154,52),Color.rgb(194,74,48),Color.rgb(142,48,105)},
+                        {Color.rgb(0,196,119),Color.rgb(0,163,92),Color.rgb(0,111,57),Color.rgb(255,188,0),Color.rgb(255,68,0),Color.rgb(224,0,126)},
+                        {Color.rgb(78,112,111),Color.rgb(55,139,132),Color.rgb(35,103,99),Color.rgb(184,145,76),Color.rgb(188,88,70),Color.rgb(119,72,119)}
+                });
 
-        String mapValue = prefs.getString("map_theme", "slate");
-        TextView mapLabel = text("Map colours: " + mapThemeName(mapValue), 16);
-        root.addView(mapLabel);
-        String nextMap = nextMapTheme(mapValue);
-        Button mapTheme = new Button(this); mapTheme.setText("Try " + mapThemeName(nextMap));
-        mapTheme.setOnClickListener(v -> { prefs.edit().putString("map_theme", nextMap).apply(); render(); });
-        root.addView(mapTheme);
+        addSpectrumSection(root, "MAP COLOURS", "map_theme", prefs.getString("map_theme", "slate"),
+                new String[]{"slate","navy","forest","plum"},
+                new String[]{"Schagchel\nSlate","Midnight\nNavy","Forest\nCharcoal","Plum\nDusk"},
+                new int[][]{
+                        {Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(103,125,134)},
+                        {Color.rgb(4,15,25),Color.rgb(8,28,42),Color.rgb(25,43,55),Color.rgb(38,59,70),Color.rgb(104,135,149)},
+                        {Color.rgb(7,18,19),Color.rgb(13,29,28),Color.rgb(32,48,43),Color.rgb(44,61,52),Color.rgb(111,133,119)},
+                        {Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)}
+                });
 
         Button apply = new Button(this); apply.setText("Set live wallpaper");
         apply.setOnClickListener(v -> {
@@ -116,32 +122,40 @@ public class SettingsActivity extends Activity {
         };
     }
 
-    private String paletteName(String value) {
-        if ("blue".equals(value)) return "Universal Blue";
-        if ("wu_classic".equals(value)) return "WU Storm";
-        if ("night".equals(value)) return "KetelCalm";
-        return "Muted WU Storm";
+    private void addSpectrumSection(LinearLayout root,String title,String preference,String selected,String[] keys,String[] names,int[][] colours) {
+        TextView heading=text(title,15);heading.setTypeface(Typeface.DEFAULT_BOLD);heading.setPadding(0,dp(22),0,dp(6));root.addView(heading);
+        LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout[] cards=new LinearLayout[keys.length];TextView[] labels=new TextView[keys.length];GradientDrawable[] swatches=new GradientDrawable[keys.length];
+        for(int i=0;i<keys.length;i++) {
+            boolean active=keys[i].equals(selected);
+            LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER_HORIZONTAL);
+            card.setPadding(dp(3),dp(3),dp(3),dp(5));card.setClickable(true);
+            TextView name=text(names[i],11);name.setGravity(Gravity.CENTER);name.setMinLines(2);name.setMaxLines(2);
+            card.addView(name,new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(48)));
+            View spectrum=new View(this);GradientDrawable gradient=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,colours[i]);
+            gradient.setCornerRadius(dp(7));spectrum.setBackground(gradient);
+            LinearLayout.LayoutParams spectrumParams=new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(122));spectrumParams.setMargins(dp(5),0,dp(5),dp(5));card.addView(spectrum,spectrumParams);
+            LinearLayout.LayoutParams cardParams=new LinearLayout.LayoutParams(0,dp(184),1f);cardParams.setMargins(dp(2),0,dp(2),0);row.addView(card,cardParams);
+            cards[i]=card;labels[i]=name;swatches[i]=gradient;styleSpectrumCard(card,name,gradient,active);
+        }
+        for(int i=0;i<keys.length;i++) {
+            final int chosen=i;
+            cards[i].setOnClickListener(v->{
+                prefs.edit().putString(preference,keys[chosen]).apply();
+                for(int j=0;j<cards.length;j++)styleSpectrumCard(cards[j],labels[j],swatches[j],j==chosen);
+            });
+        }
+        root.addView(row,new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(184)));
     }
 
-    private String nextPalette(String value) {
-        if ("wu".equals(value)) return "wu_classic";
-        if ("wu_classic".equals(value)) return "night";
-        if ("night".equals(value)) return "blue";
-        return "wu";
+    private void styleSpectrumCard(LinearLayout card,TextView name,GradientDrawable spectrum,boolean active) {
+        GradientDrawable background=new GradientDrawable();background.setColor(active?Color.rgb(31,46,53):Color.TRANSPARENT);background.setCornerRadius(dp(9));card.setBackground(background);
+        name.setTypeface(active?Typeface.DEFAULT_BOLD:Typeface.DEFAULT);name.setTextColor(active?Color.rgb(229,244,248):Color.rgb(155,171,180));
+        spectrum.setStroke(dp(active?3:1),active?Color.rgb(226,244,249):Color.rgb(67,84,92));
     }
 
-    private String mapThemeName(String value) {
-        if ("navy".equals(value)) return "Midnight Navy";
-        if ("forest".equals(value)) return "Forest Charcoal";
-        if ("plum".equals(value)) return "Plum Dusk";
-        return "SchagchelSlate";
-    }
-
-    private String nextMapTheme(String value) {
-        if ("slate".equals(value)) return "navy";
-        if ("navy".equals(value)) return "forest";
-        if ("forest".equals(value)) return "plum";
-        return "slate";
+    private int dp(int value) {
+        return Math.round(value*getResources().getDisplayMetrics().density);
     }
 
     private void requestLocation() {

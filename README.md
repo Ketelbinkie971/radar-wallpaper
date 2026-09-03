@@ -7,7 +7,7 @@ Minimal Android live wallpaper showing the latest RainViewer precipitation radar
 1. Open **Radar Wallpaper**.
 2. Tap **Allow location**, then use Android's app-permission screen to choose **Allow all the time**.
 3. Choose regional scale and opacity.
-4. Choose a radar gradient—including KetelCalm—and a separate map gradient such as SchagchelSlate.
+4. Tap a labelled radar spectrum and a separate labelled map spectrum to select their colours.
 5. Tap **Set live wallpaper**, preview, and apply.
 
 If location permission is not granted, the wallpaper defaults to Copenhagen. Location stays on-device and is only converted into the tile coordinates needed for the visible map.
@@ -18,6 +18,7 @@ If location permission is not granted, the wallpaper defaults to Copenhagen. Loc
 - Radar needs an internet connection; the base map is bundled and works offline.
 - The last radar tiles are cached on disk and shown immediately while a newer frame refreshes.
 - Country polygons are unwrapped across the international date line to prevent map-fill seams.
+- Frames are assembled off-screen so slow network requests never hold Android's wallpaper surface open.
 - This first build is deliberately static between refreshes to minimise battery use.
 - RainViewer availability is best-effort.
 
