@@ -7,8 +7,10 @@ Minimal Android live wallpaper showing the latest RainViewer precipitation radar
 1. Open **Radar Wallpaper**.
 2. Tap **Allow location**, then use Android's app-permission screen to choose **Allow all the time**.
 3. Choose regional scale and opacity.
-4. Tap one of five labelled radar spectra and one of five miniature Taiwan map previews.
+4. Tap one of five labelled radar spectra and one of five miniature Sjælland map previews.
 5. Tap **Set live wallpaper**, preview, and apply.
+
+Double-tap a radar or map preset to edit it. The editor can share the current preset through Android's share sheet. Shared `*.radar.json` and `*.map.json` files can be opened with Radar Wallpaper; the import confirmation screen shows the preset type and lets the recipient choose exactly which same-type slot to overwrite. Preset files contain only the name, type and colours.
 
 If location permission is not granted, the wallpaper defaults to Copenhagen. Location stays on-device and is only converted into the tile coordinates needed for the visible map.
 

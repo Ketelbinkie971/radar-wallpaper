@@ -1,8 +1,10 @@
 package com.ketelcustoms.radarwallpaper;
 
 import android.app.*;
+import android.content.*;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.*;
@@ -33,9 +35,15 @@ public class PresetEditorActivity extends Activity {
         LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);
         Button cancel=new Button(this);cancel.setText("Cancel");cancel.setOnClickListener(v->finish());actions.addView(cancel,new LinearLayout.LayoutParams(0,dp(54),1f));
         Button reset=new Button(this);reset.setText("Reset");reset.setOnClickListener(v->{colours=PresetStore.defaultColours(type,key);name.setText(PresetStore.defaultName(type,key));rebuildStops();preview.invalidate();});actions.addView(reset,new LinearLayout.LayoutParams(0,dp(54),1f));
-        Button save=new Button(this);save.setText("Save");save.setOnClickListener(v->{String chosen=name.getText().toString().trim();if(chosen.isEmpty()){name.setError("Enter a name");return;}PresetStore.save(this,type,key,chosen,colours);setResult(RESULT_OK);finish();});actions.addView(save,new LinearLayout.LayoutParams(0,dp(54),1f));root.addView(actions);
+        root.addView(actions);
+        LinearLayout primaryActions=new LinearLayout(this);primaryActions.setOrientation(LinearLayout.HORIZONTAL);
+        Button share=new Button(this);share.setText(PresetStore.MAP.equals(type)?"Share map":"Share radar");share.setOnClickListener(v->sharePreset());primaryActions.addView(share,new LinearLayout.LayoutParams(0,dp(54),1f));
+        Button save=new Button(this);save.setText("Save");save.setOnClickListener(v->{String chosen=validName();if(chosen==null)return;PresetStore.save(this,type,key,chosen,colours);setResult(RESULT_OK);finish();});primaryActions.addView(save,new LinearLayout.LayoutParams(0,dp(54),1f));root.addView(primaryActions);
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.addView(root);setContentView(scroll);root.requestApplyInsets();
     }
+
+    private String validName(){String chosen=name.getText().toString().trim();if(chosen.isEmpty()){name.setError("Enter a name");return null;}return chosen;}
+    private void sharePreset(){String chosen=validName();if(chosen==null)return;try{Uri file=PresetExchange.writeSharedFile(this,type,chosen,colours);Intent send=new Intent(Intent.ACTION_SEND);send.setType(PresetExchange.mime(type));send.putExtra(Intent.EXTRA_STREAM,file);send.putExtra(Intent.EXTRA_SUBJECT,chosen+" — Radar Wallpaper preset");send.setClipData(ClipData.newRawUri("Radar Wallpaper preset",file));send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);startActivity(Intent.createChooser(send,"Share "+(PresetStore.MAP.equals(type)?"map":"radar")+" preset"));}catch(Exception error){Toast.makeText(this,"Could not share preset: "+error.getMessage(),Toast.LENGTH_LONG).show();}}
 
     private void rebuildStops(){
         stops.removeAllViews();swatches.clear();values.clear();int[] shown=PresetStore.MAP.equals(type)?PresetStore.mapEditorColours(colours):colours;String[] labels=PresetStore.MAP.equals(type)?MAP_LABELS:RADAR_LABELS;
