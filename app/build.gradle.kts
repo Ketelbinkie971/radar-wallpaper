@@ -8,8 +8,8 @@ android {
         applicationId = "com.ketelcustoms.radarwallpaper"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.19"
+        versionCode = 20
+        versionName = "0.20"
     }
 
     buildTypes {
@@ -21,3 +21,12 @@ android {
 }
 
 dependencies { }
+
+val cacheTaipeiRadar by tasks.registering(Exec::class) {
+    workingDir(rootProject.projectDir)
+    commandLine("python3", "download_taipei_preview.py")
+}
+
+tasks.named("preBuild") {
+    dependsOn(cacheTaipeiRadar)
+}
