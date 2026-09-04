@@ -69,6 +69,7 @@ public class RadarWallpaperService extends WallpaperService {
         @Override public WallpaperColors onComputeColors(){return new WallpaperColors(Color.valueOf(Color.rgb(9,18,24)),Color.valueOf(Color.rgb(78,114,128)),Color.valueOf(Color.rgb(215,235,242)));}
 
         private void startLocation(){
+            if(isPreview())return;
             if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED&&checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)!=PackageManager.PERMISSION_GRANTED)return;
             try{
                 Location l=locations.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
@@ -96,6 +97,10 @@ public class RadarWallpaperService extends WallpaperService {
             try{
                 int viewW=surfaceWidth,viewH=surfaceHeight;if(viewW<1||viewH<1)return;
                 int w=Math.min(viewW,900),h=Math.max(1,Math.round(w*(viewH/(float)viewW)));
+                if(isPreview()){
+                    frame=TaiwanPreviewRenderer.render(getApplicationContext(),w,h,prefs.getInt("zoom",6),prefs.getString("map_theme","slate"),prefs.getString("palette","night"),prefs.getInt("opacity",72));
+                    postFrame(frame);Bitmap old=lastFrame;lastFrame=frame;frame=null;if(old!=null&&!old.isRecycled())old.recycle();return;
+                }
                 double scale=w/(double)viewW;
                 frame=Bitmap.createBitmap(w,h,Bitmap.Config.ARGB_8888);Canvas c=new Canvas(frame);c.drawColor(Color.rgb(7,16,22));
                 int z=prefs.getInt("zoom",6),tile=256;
@@ -131,6 +136,7 @@ public class RadarWallpaperService extends WallpaperService {
         }
 
         private void requestBaseMap(){
+            if(isPreview())return;
             String mapTheme=prefs.getString("map_theme","slate");int selectedZoom=prefs.getInt("zoom",6);
             if(mapBusy||surfaceWidth<1||surfaceHeight<1)return;
             if(baseMap!=null&&mapTheme.equals(renderedMapTheme)&&selectedZoom==renderedMapZoom)return;
@@ -193,11 +199,7 @@ public class RadarWallpaperService extends WallpaperService {
         private double worldX(double longitude,double world){return(longitude+180.0)/360.0*world;}
         private double worldY(double latitude,double world){double s=Math.sin(Math.toRadians(Math.max(-85.05,Math.min(85.05,latitude))));return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*world;}
         private int[] mapThemeColours(String theme){
-            if("navy".equals(theme))return new int[]{Color.rgb(3,14,24),Color.rgb(7,25,38),Color.rgb(24,42,51),Color.rgb(34,57,63),Color.rgb(71,208,204)};
-            if("forest".equals(theme))return new int[]{Color.rgb(12,16,14),Color.rgb(23,29,18),Color.rgb(49,48,24),Color.rgb(72,69,27),Color.rgb(219,196,74)};
-            if("plum".equals(theme))return new int[]{Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)};
-            if("copper".equals(theme))return new int[]{Color.rgb(3,19,18),Color.rgb(7,31,27),Color.rgb(52,39,27),Color.rgb(76,52,31),Color.rgb(209,134,55)};
-            return new int[]{Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(239,58,66)};
+            return TaiwanPreviewRenderer.mapColours(theme);
         }
 
         private void drawFallback(){
@@ -207,7 +209,7 @@ public class RadarWallpaperService extends WallpaperService {
             catch(Throwable ignored){}finally{if(c!=null)try{h.unlockCanvasAndPost(c);}catch(Throwable ignored){}}
         }
         private Bitmap getBitmap(String url,String palette){
-            String cacheKey="gradient-v4|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
+            String cacheKey="gradient-v5|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
                 File disk=new File(radarCacheDir,cacheName(cacheKey));
                 if(disk.isFile()){
@@ -237,51 +239,7 @@ public class RadarWallpaperService extends WallpaperService {
             }catch(Throwable ignored){}
         }
         private Bitmap recolourRadar(Bitmap source,String palette){
-            Bitmap out=source.copy(Bitmap.Config.ARGB_8888,true);int w=out.getWidth(),h=out.getHeight();
-            int[] pixels=new int[w*h];out.getPixels(pixels,0,w,0,0,w,h);
-            int[][] colours;
-            if("wu_classic".equals(palette))colours=new int[][]{
-                    {0,196,119},{0,163,92},{0,111,57},{255,188,0},
-                    {255,68,0},{239,0,20},{224,0,126}};
-            else if("night".equals(palette))colours=new int[][]{
-                    {82,111,109},{55,135,126},{37,101,94},{176,142,75},
-                    {181,94,65},{150,65,74},{105,58,83}};
-            else if("lagoon".equals(palette))colours=new int[][]{
-                    {91,145,117},{112,174,100},{151,191,79},{194,207,91},
-                    {222,220,126},{236,230,165},{248,241,205}};
-            else if("sunset".equals(palette))colours=new int[][]{
-                    {112,128,103},{139,134,83},{174,143,73},{190,157,92},
-                    {159,104,72},{120,70,60},{79,46,50}};
-            else if("orchid".equals(palette))colours=new int[][]{
-                    {115,101,154},{128,83,174},{151,65,177},{181,62,166},
-                    {205,64,145},{225,76,131},{241,116,153}};
-            else if("polar".equals(palette))colours=new int[][]{
-                    {112,130,143},{137,162,178},{166,190,207},{177,184,218},
-                    {194,184,223},{220,207,231},{246,240,239}};
-            else colours=new int[][]{
-                    {55,101,83},{40,128,91},{23,103,76},{190,154,52},
-                    {194,74,48},{172,43,72},{142,48,105}};
-            double[] levels={-5,10,20,35,45,55,65};
-            for(int i=0;i<pixels.length;i++){
-                int c=pixels[i],a=Color.alpha(c);if(a==0)continue;
-                int r=Color.red(c),g=Color.green(c),b=Color.blue(c);double dbz;
-                if(r>225&&g>225&&b>225){dbz=66;}
-                else if(b>180&&r>180){dbz=g>175?66:55+(170-g)*9.0/92.0;}
-                else if(r>220&&g>75&&b<80){dbz=35+(238-g)*9.0/109.0;}
-                else if(r>80&&g<90&&b<80){dbz=45+(255-r)*9.0/162.0;}
-                else if(b>g&&b>r&&g>=150){dbz=20-(g-163)*5.0/58.0;}
-                else if(b>g&&b>r){dbz=20+(163-g)*14.0/92.0;}
-                else if(r>70&&g>70&&b<180){dbz=Math.max(-5,15-(g-123)*.11);}
-                else continue;
-                int upper=1;
-                while(upper<levels.length-1&&dbz>levels[upper])upper++;
-                int lower=upper-1;double amount=Math.max(0,Math.min(1,(dbz-levels[lower])/(levels[upper]-levels[lower])));
-                int nr=(int)Math.round(colours[lower][0]+(colours[upper][0]-colours[lower][0])*amount);
-                int ng=(int)Math.round(colours[lower][1]+(colours[upper][1]-colours[lower][1])*amount);
-                int nb=(int)Math.round(colours[lower][2]+(colours[upper][2]-colours[lower][2])*amount);
-                pixels[i]=Color.argb(a,nr,ng,nb);
-            }
-            out.setPixels(pixels,0,w,0,0,w,h);return out;
+            return TaiwanPreviewRenderer.recolour(source,palette);
         }
         private String readText(String url)throws Exception{
             HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(8000);c.setReadTimeout(10000);

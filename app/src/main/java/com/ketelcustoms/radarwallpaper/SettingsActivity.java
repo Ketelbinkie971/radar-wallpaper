@@ -11,10 +11,15 @@ import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.ScrollView;
@@ -22,6 +27,11 @@ import android.widget.TextView;
 
 public class SettingsActivity extends Activity {
     private SharedPreferences prefs;
+    private TaiwanBackgroundView previewBackground;
+    private View previewScrim;
+    private ScrollView controls;
+    private final Handler mainHandler=new Handler(Looper.getMainLooper());
+    private Runnable revealPreview;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -39,13 +49,14 @@ public class SettingsActivity extends Activity {
     }
 
     private void render() {
+        if(previewBackground!=null)previewBackground.shutdown();
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL); root.setPadding(48,48,48,32);
         root.setOnApplyWindowInsetsListener((view, insets) -> {
             view.setPadding(48, 48 + insets.getSystemWindowInsetTop(), 48, 32 + insets.getSystemWindowInsetBottom());
             return insets;
         });
-        root.setBackgroundColor(Color.rgb(11,15,18));
+        root.setBackgroundColor(Color.TRANSPARENT);
         root.addView(text("RADAR WALLPAPER", 25));
         TextView intro = text("A quiet regional radar map that follows you. Your location stays on the phone and is used only to choose visible map tiles.", 15);
         intro.setTextColor(Color.rgb(155,171,180)); root.addView(intro);
@@ -74,16 +85,16 @@ public class SettingsActivity extends Activity {
         int opacityValue = prefs.getInt("opacity", 72);
         TextView opacityLabel = text("Radar opacity: " + opacityValue + "%", 16); root.addView(opacityLabel);
         SeekBar opacity = new SeekBar(this); opacity.setMax(70); opacity.setProgress(opacityValue - 30);
-        opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); })); root.addView(opacity);
+        opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); if(previewBackground!=null)previewBackground.showSaved(); })); root.addView(opacity);
 
         addSpectrumSection(root, "RADAR COLOURS", "palette", prefs.getString("palette", "night"),
                 new String[]{"night","lagoon","sunset","orchid","polar"},
                 new String[]{"Butts\nSocks","Rens'\nCaipirinha","Krüters\nKlarinet","Ons-Low\nICQ","Cemsto\nClean"},
                 new int[][]{
                         {Color.rgb(82,111,109),Color.rgb(55,135,126),Color.rgb(37,101,94),Color.rgb(176,142,75),Color.rgb(181,94,65),Color.rgb(150,65,74),Color.rgb(105,58,83)},
-                        {Color.rgb(91,145,117),Color.rgb(112,174,100),Color.rgb(151,191,79),Color.rgb(194,207,91),Color.rgb(222,220,126),Color.rgb(236,230,165),Color.rgb(248,241,205)},
-                        {Color.rgb(112,128,103),Color.rgb(139,134,83),Color.rgb(174,143,73),Color.rgb(190,157,92),Color.rgb(159,104,72),Color.rgb(120,70,60),Color.rgb(79,46,50)},
-                        {Color.rgb(115,101,154),Color.rgb(128,83,174),Color.rgb(151,65,177),Color.rgb(181,62,166),Color.rgb(205,64,145),Color.rgb(225,76,131),Color.rgb(241,116,153)},
+                        {Color.rgb(91,145,117),Color.rgb(79,174,131),Color.rgb(126,193,82),Color.rgb(214,199,75),Color.rgb(226,134,74),Color.rgb(190,76,113),Color.rgb(239,225,183)},
+                        {Color.rgb(112,128,103),Color.rgb(92,139,116),Color.rgb(174,143,73),Color.rgb(92,139,151),Color.rgb(177,108,69),Color.rgb(117,61,58),Color.rgb(213,177,105)},
+                        {Color.rgb(115,101,154),Color.rgb(79,135,169),Color.rgb(151,65,177),Color.rgb(211,125,65),Color.rgb(205,64,145),Color.rgb(111,65,164),Color.rgb(241,162,147)},
                         {Color.rgb(112,130,143),Color.rgb(137,162,178),Color.rgb(166,190,207),Color.rgb(177,184,218),Color.rgb(194,184,223),Color.rgb(220,207,231),Color.rgb(246,240,239)}
                 });
 
@@ -109,9 +120,11 @@ public class SettingsActivity extends Activity {
         credit.setGravity(Gravity.CENTER); credit.setTextColor(Color.rgb(115,135,145));
         credit.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.rainviewer.com/"))));
         root.addView(credit);
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true); scroll.addView(root);
-        setContentView(scroll);
+        controls = new ScrollView(this);
+        controls.setFillViewport(true); controls.addView(root);
+        FrameLayout page=new FrameLayout(this);previewBackground=new TaiwanBackgroundView();page.addView(previewBackground,new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,FrameLayout.LayoutParams.MATCH_PARENT));
+        previewScrim=new View(this);previewScrim.setBackgroundColor(Color.BLACK);previewScrim.setAlpha(.64f);page.addView(previewScrim,new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,FrameLayout.LayoutParams.MATCH_PARENT));
+        page.addView(controls,new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,FrameLayout.LayoutParams.MATCH_PARENT));setContentView(page);
         root.requestApplyInsets();
     }
 
@@ -144,7 +157,9 @@ public class SettingsActivity extends Activity {
             cards[i].setOnClickListener(v->{
                 prefs.edit().putString(preference,keys[chosen]).apply();
                 for(int j=0;j<cards.length;j++)styleSpectrumCard(cards[j],labels[j],swatches[j],j==chosen);
+                if(previewBackground!=null)previewBackground.showSaved();
             });
+            attachHoldPreview(cards[i],preference,keys[i]);
         }
         root.addView(row,new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(184)));
     }
@@ -175,7 +190,9 @@ public class SettingsActivity extends Activity {
             cards[i].setOnClickListener(v->{
                 prefs.edit().putString(preference,keys[chosen]).apply();
                 for(int j=0;j<cards.length;j++)styleMapCard(cards[j],labels[j],previews[j],j==chosen);
+                if(previewBackground!=null)previewBackground.showSaved();
             });
+            attachHoldPreview(cards[i],preference,keys[i]);
         }
         root.addView(row,new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,dp(184)));
     }
@@ -220,6 +237,39 @@ public class SettingsActivity extends Activity {
     private int dp(int value) {
         return Math.round(value*getResources().getDisplayMetrics().density);
     }
+
+    private void attachHoldPreview(View card,String preference,String key){
+        card.setOnTouchListener((view,event)->{
+            if(event.getActionMasked()==MotionEvent.ACTION_DOWN){
+                if(previewBackground!=null)previewBackground.showCandidate(preference,key);
+                revealPreview=()->{if(controls!=null)controls.animate().alpha(0f).setDuration(120).start();if(previewScrim!=null)previewScrim.animate().alpha(0f).setDuration(120).start();};
+                mainHandler.postDelayed(revealPreview,420);
+            }else if(event.getActionMasked()==MotionEvent.ACTION_UP||event.getActionMasked()==MotionEvent.ACTION_CANCEL){
+                if(revealPreview!=null)mainHandler.removeCallbacks(revealPreview);
+                if(controls!=null){controls.animate().cancel();controls.setAlpha(1f);}if(previewScrim!=null){previewScrim.animate().cancel();previewScrim.setAlpha(.64f);}
+                if(previewBackground!=null)previewBackground.showSaved();
+            }
+            return false;
+        });
+    }
+
+    private final class TaiwanBackgroundView extends View{
+        private final HandlerThread thread;private final Handler worker;private Bitmap image;private int generation;private String temporaryPreference,temporaryKey;
+        TaiwanBackgroundView(){super(SettingsActivity.this);thread=new HandlerThread("settings-map-preview");thread.start();worker=new Handler(thread.getLooper());}
+        void showCandidate(String preference,String key){temporaryPreference=preference;temporaryKey=key;requestImage();}
+        void showSaved(){temporaryPreference=null;temporaryKey=null;requestImage();}
+        void shutdown(){generation++;worker.removeCallbacksAndMessages(null);thread.quitSafely();}
+        @Override protected void onSizeChanged(int w,int h,int oldw,int oldh){requestImage();}
+        private void requestImage(){
+            int w=getWidth(),h=getHeight();if(w<1||h<1)return;int request=++generation,zoom=prefs.getInt("zoom",6),opacity=prefs.getInt("opacity",72);
+            String map=prefs.getString("map_theme","slate"),palette=prefs.getString("palette","night");
+            if("map_theme".equals(temporaryPreference))map=temporaryKey;if("palette".equals(temporaryPreference))palette=temporaryKey;
+            final String chosenMap=map,chosenPalette=palette;worker.post(()->{Bitmap next=TaiwanPreviewRenderer.render(getApplicationContext(),w,h,zoom,chosenMap,chosenPalette,opacity);mainHandler.post(()->{if(request!=generation){next.recycle();return;}Bitmap old=image;image=next;invalidate();if(old!=null&&!old.isRecycled())old.recycle();});});
+        }
+        @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);if(image!=null&&!image.isRecycled())canvas.drawBitmap(image,null,new Rect(0,0,getWidth(),getHeight()),null);else canvas.drawColor(Color.rgb(7,16,22));}
+    }
+
+    @Override protected void onDestroy(){if(previewBackground!=null)previewBackground.shutdown();mainHandler.removeCallbacksAndMessages(null);super.onDestroy();}
 
     private void requestLocation() {
         boolean foreground = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
