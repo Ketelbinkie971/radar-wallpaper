@@ -21,6 +21,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".PresetEditorActivity"
+            android:exported="false" />
         <service
             android:name=".RadarWallpaperService"
             android:exported="true"

@@ -87,27 +87,13 @@ public class SettingsActivity extends Activity {
         SeekBar opacity = new SeekBar(this); opacity.setMax(70); opacity.setProgress(opacityValue - 30);
         opacity.setOnSeekBarChangeListener(listener(p -> { prefs.edit().putInt("opacity", p + 30).apply(); opacityLabel.setText("Radar opacity: " + (p + 30) + "%"); if(previewBackground!=null)previewBackground.showSaved(); })); root.addView(opacity);
 
-        addSpectrumSection(root, "RADAR COLOURS", "palette", prefs.getString("palette", "night"),
-                new String[]{"night","lagoon","sunset","orchid","polar"},
-                new String[]{"Butts\nSocks","Rens'\nCaipirinha","Krüters\nKlarinet","Ons-Low\nICQ","Cemsto\nClean"},
-                new int[][]{
-                        {Color.rgb(82,111,109),Color.rgb(55,135,126),Color.rgb(37,101,94),Color.rgb(176,142,75),Color.rgb(181,94,65),Color.rgb(150,65,74),Color.rgb(105,58,83)},
-                        {Color.rgb(91,145,117),Color.rgb(79,174,131),Color.rgb(126,193,82),Color.rgb(214,199,75),Color.rgb(226,134,74),Color.rgb(190,76,113),Color.rgb(239,225,183)},
-                        {Color.rgb(112,128,103),Color.rgb(92,139,116),Color.rgb(174,143,73),Color.rgb(92,139,151),Color.rgb(177,108,69),Color.rgb(117,61,58),Color.rgb(213,177,105)},
-                        {Color.rgb(115,101,154),Color.rgb(79,135,169),Color.rgb(151,65,177),Color.rgb(211,125,65),Color.rgb(205,64,145),Color.rgb(111,65,164),Color.rgb(241,162,147)},
-                        {Color.rgb(112,130,143),Color.rgb(137,162,178),Color.rgb(166,190,207),Color.rgb(177,184,218),Color.rgb(194,184,223),Color.rgb(220,207,231),Color.rgb(246,240,239)}
-                });
+        TextView editHint=text("Double-tap a preset to edit its name and colours. Press and hold to inspect it full screen.",13);editHint.setTextColor(Color.rgb(154,174,183));root.addView(editHint);
 
-        addMapPreviewSection(root, "MAP COLOURS", "map_theme", prefs.getString("map_theme", "slate"),
-                new String[]{"slate","navy","forest","plum","copper"},
-                new String[]{"Schagchel\nStraat","Spaarne\nControl","Lange\nVeer","Du\nTheatre","Eenden\nHok"},
-                new int[][]{
-                        {Color.rgb(7,18,25),Color.rgb(12,28,35),Color.rgb(34,49,56),Color.rgb(43,60,66),Color.rgb(239,58,66)},
-                        {Color.rgb(3,14,24),Color.rgb(7,25,38),Color.rgb(24,42,51),Color.rgb(34,57,63),Color.rgb(71,208,204)},
-                        {Color.rgb(12,16,14),Color.rgb(23,29,18),Color.rgb(49,48,24),Color.rgb(72,69,27),Color.rgb(219,196,74)},
-                        {Color.rgb(16,12,23),Color.rgb(28,20,35),Color.rgb(48,38,53),Color.rgb(61,47,64),Color.rgb(137,116,143)},
-                        {Color.rgb(3,19,18),Color.rgb(7,31,27),Color.rgb(52,39,27),Color.rgb(76,52,31),Color.rgb(209,134,55)}
-                });
+        String[] radarKeys=PresetStore.keys(PresetStore.RADAR);
+        addSpectrumSection(root,"RADAR COLOURS","palette",prefs.getString("palette","night"),radarKeys,presetNames(PresetStore.RADAR,radarKeys),presetColours(PresetStore.RADAR,radarKeys));
+
+        String[] mapKeys=PresetStore.keys(PresetStore.MAP);
+        addMapPreviewSection(root,"MAP COLOURS","map_theme",prefs.getString("map_theme","slate"),mapKeys,presetNames(PresetStore.MAP,mapKeys),presetColours(PresetStore.MAP,mapKeys));
 
         Button apply = new Button(this); apply.setText("Set live wallpaper");
         apply.setOnClickListener(v -> {
@@ -139,7 +125,7 @@ public class SettingsActivity extends Activity {
     private void addSpectrumSection(LinearLayout root,String title,String preference,String selected,String[] keys,String[] names,int[][] colours) {
         TextView heading=text(title,15);heading.setTypeface(Typeface.DEFAULT_BOLD);heading.setPadding(0,dp(22),0,dp(6));root.addView(heading);
         LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout[] cards=new LinearLayout[keys.length];TextView[] labels=new TextView[keys.length];GradientDrawable[] swatches=new GradientDrawable[keys.length];
+        LinearLayout[] cards=new LinearLayout[keys.length];TextView[] labels=new TextView[keys.length];GradientDrawable[] swatches=new GradientDrawable[keys.length];long[] lastTap=new long[keys.length];
         for(int i=0;i<keys.length;i++) {
             boolean active=keys[i].equals(selected);
             LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -155,6 +141,7 @@ public class SettingsActivity extends Activity {
         for(int i=0;i<keys.length;i++) {
             final int chosen=i;
             cards[i].setOnClickListener(v->{
+                long now=System.currentTimeMillis();if(now-lastTap[chosen]<380){lastTap[chosen]=0;openPresetEditor(PresetStore.RADAR,keys[chosen]);return;}lastTap[chosen]=now;
                 prefs.edit().putString(preference,keys[chosen]).apply();
                 for(int j=0;j<cards.length;j++)styleSpectrumCard(cards[j],labels[j],swatches[j],j==chosen);
                 if(previewBackground!=null)previewBackground.showSaved();
@@ -173,7 +160,7 @@ public class SettingsActivity extends Activity {
     private void addMapPreviewSection(LinearLayout root,String title,String preference,String selected,String[] keys,String[] names,int[][] colours) {
         TextView heading=text(title,15);heading.setTypeface(Typeface.DEFAULT_BOLD);heading.setPadding(0,dp(22),0,dp(6));root.addView(heading);
         LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout[] cards=new LinearLayout[keys.length];TextView[] labels=new TextView[keys.length];MapPreviewView[] previews=new MapPreviewView[keys.length];
+        LinearLayout[] cards=new LinearLayout[keys.length];TextView[] labels=new TextView[keys.length];MapPreviewView[] previews=new MapPreviewView[keys.length];long[] lastTap=new long[keys.length];
         for(int i=0;i<keys.length;i++) {
             boolean active=keys[i].equals(selected);
             LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -188,6 +175,7 @@ public class SettingsActivity extends Activity {
         for(int i=0;i<keys.length;i++) {
             final int chosen=i;
             cards[i].setOnClickListener(v->{
+                long now=System.currentTimeMillis();if(now-lastTap[chosen]<380){lastTap[chosen]=0;openPresetEditor(PresetStore.MAP,keys[chosen]);return;}lastTap[chosen]=now;
                 prefs.edit().putString(preference,keys[chosen]).apply();
                 for(int j=0;j<cards.length;j++)styleMapCard(cards[j],labels[j],previews[j],j==chosen);
                 if(previewBackground!=null)previewBackground.showSaved();
@@ -237,6 +225,10 @@ public class SettingsActivity extends Activity {
     private int dp(int value) {
         return Math.round(value*getResources().getDisplayMetrics().density);
     }
+
+    private String[] presetNames(String type,String[] keys){String[] names=new String[keys.length];for(int i=0;i<keys.length;i++)names[i]=PresetStore.cardName(PresetStore.name(this,type,keys[i]));return names;}
+    private int[][] presetColours(String type,String[] keys){int[][] colours=new int[keys.length][];for(int i=0;i<keys.length;i++)colours[i]=PresetStore.colours(this,type,keys[i]);return colours;}
+    private void openPresetEditor(String type,String key){Intent intent=new Intent(this,PresetEditorActivity.class);intent.putExtra("type",type);intent.putExtra("key",key);startActivity(intent);}
 
     private void attachHoldPreview(View card,String preference,String key){
         card.setOnTouchListener((view,event)->{

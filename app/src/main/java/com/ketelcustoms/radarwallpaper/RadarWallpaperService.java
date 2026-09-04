@@ -137,14 +137,14 @@ public class RadarWallpaperService extends WallpaperService {
 
         private void requestBaseMap(){
             if(isPreview())return;
-            String mapTheme=prefs.getString("map_theme","slate");int selectedZoom=prefs.getInt("zoom",6);
+            String mapTheme=prefs.getString("map_theme","slate");int[] selectedTheme=mapThemeColours(mapTheme);String mapSignature=mapTheme+"|"+Arrays.hashCode(selectedTheme);int selectedZoom=prefs.getInt("zoom",6);
             if(mapBusy||surfaceWidth<1||surfaceHeight<1)return;
-            if(baseMap!=null&&mapTheme.equals(renderedMapTheme)&&selectedZoom==renderedMapZoom)return;
+            if(baseMap!=null&&mapSignature.equals(renderedMapTheme)&&selectedZoom==renderedMapZoom)return;
             mapBusy=true;
             try{
                 if(geography==null)geography=loadGeography();
                 int width=Math.min(surfaceWidth,900),height=Math.max(1,Math.round(width*(surfaceHeight/(float)surfaceWidth)));
-                int zoom=selectedZoom;double targetLat=lat,targetLon=lon;int[] theme=mapThemeColours(mapTheme);
+                int zoom=selectedZoom;double targetLat=lat,targetLon=lon;int[] theme=selectedTheme;
                 Bitmap bitmap=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);
                 Paint ocean=new Paint();ocean.setShader(new LinearGradient(0,0,0,height,theme[0],theme[1],Shader.TileMode.CLAMP));canvas.drawRect(0,0,width,height,ocean);
                 double world=256.0*(1<<zoom),cx=worldX(targetLon,world),cy=worldY(targetLat,world);
@@ -174,7 +174,7 @@ public class RadarWallpaperService extends WallpaperService {
                     }
                     canvas.drawPath(path,land);canvas.drawPath(path,border);
                 }
-                baseMap=bitmap;renderedMapTheme=mapTheme;renderedMapZoom=zoom;
+                baseMap=bitmap;renderedMapTheme=mapSignature;renderedMapZoom=zoom;
             }catch(Throwable ignored){baseMap=null;}finally{mapBusy=false;}
         }
 
@@ -199,7 +199,7 @@ public class RadarWallpaperService extends WallpaperService {
         private double worldX(double longitude,double world){return(longitude+180.0)/360.0*world;}
         private double worldY(double latitude,double world){double s=Math.sin(Math.toRadians(Math.max(-85.05,Math.min(85.05,latitude))));return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*world;}
         private int[] mapThemeColours(String theme){
-            return TaiwanPreviewRenderer.mapColours(theme);
+            return PresetStore.colours(getApplicationContext(),PresetStore.MAP,theme);
         }
 
         private void drawFallback(){
@@ -209,7 +209,7 @@ public class RadarWallpaperService extends WallpaperService {
             catch(Throwable ignored){}finally{if(c!=null)try{h.unlockCanvasAndPost(c);}catch(Throwable ignored){}}
         }
         private Bitmap getBitmap(String url,String palette){
-            String cacheKey="gradient-v5|"+url+"|"+palette;Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
+            String cacheKey="gradient-v6|"+url+"|"+palette+"|"+Arrays.hashCode(PresetStore.colours(getApplicationContext(),PresetStore.RADAR,palette));Bitmap hit=cache.get(cacheKey);if(hit!=null)return hit;
             try{
                 File disk=new File(radarCacheDir,cacheName(cacheKey));
                 if(disk.isFile()){
@@ -239,7 +239,7 @@ public class RadarWallpaperService extends WallpaperService {
             }catch(Throwable ignored){}
         }
         private Bitmap recolourRadar(Bitmap source,String palette){
-            return TaiwanPreviewRenderer.recolour(source,palette);
+            return TaiwanPreviewRenderer.recolour(getApplicationContext(),source,palette);
         }
         private String readText(String url)throws Exception{
             HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(8000);c.setReadTimeout(10000);
