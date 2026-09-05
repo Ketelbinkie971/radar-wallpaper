@@ -23,6 +23,7 @@ If location permission is not granted, the wallpaper defaults to Copenhagen. Loc
 - The last radar tiles are cached on disk and shown immediately while a newer frame refreshes.
 - Optional Flight Trails reads one selected on-device calendar and draws routes for the seven days before and after today. Calendar data never leaves the phone.
 - With locally entered OpenSky credentials, completed flights are matched conservatively by airports, time and flight-number digits. Recorded ADS-B paths are cached in permanent app storage; unmatched and future flights remain great circles.
+- If today's completed flight has not been processed yet, the app tries the same flight number and airport pair one day earlier, then two days earlier. A borrowed track remains provisional and is automatically replaced when the exact track becomes available.
 - OpenSky credentials are stored only in Android's private app storage. Application backup is disabled so they are not copied into cloud backups. Each person sharing the APK should preferably use their own free OpenSky API Client.
 - Airport coordinates are bundled from the public-domain OurAirports dataset; Flight Trails requires no FlightRadar24 account, API, or server.
 - Country polygons are unwrapped across the international date line to prevent map-fill seams.

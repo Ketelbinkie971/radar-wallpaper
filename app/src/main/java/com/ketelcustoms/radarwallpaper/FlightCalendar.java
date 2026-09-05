@@ -24,7 +24,7 @@ final class FlightCalendar {
     }
 
     static final class Leg {
-        final String from,to,fromIcao,toIcao,title,flightNumber;final double fromLat,fromLon,toLat,toLon;final long start,end;List<double[]> actualTrack;
+        final String from,to,fromIcao,toIcao,title,flightNumber;final double fromLat,fromLon,toLat,toLon;final long start,end;List<double[]> actualTrack;boolean borrowedTrack;
         Leg(String from,String to,String title,String flightNumber,Airport a,Airport b,long start,long end){this.from=from;this.to=to;fromIcao=a.icao;toIcao=b.icao;this.title=title;this.flightNumber=flightNumber;fromLat=a.lat;fromLon=a.lon;toLat=b.lat;toLon=b.lon;this.start=start;this.end=end;}
     }
 
