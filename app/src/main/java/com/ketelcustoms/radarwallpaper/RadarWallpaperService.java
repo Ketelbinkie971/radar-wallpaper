@@ -26,7 +26,7 @@ public class RadarWallpaperService extends WallpaperService {
         });
         private HandlerThread thread; private Handler worker;
         private File radarCacheDir;
-        private volatile Bitmap baseMap,lastFrame; private volatile boolean mapBusy;
+        private volatile Bitmap baseMap,lastFrame,lastFrameWithoutFlights; private volatile boolean mapBusy;
         private String renderedMapTheme; private int renderedMapZoom=-1;
         private List<List<float[]>> geography;
         private int surfaceWidth,surfaceHeight;
@@ -34,11 +34,11 @@ public class RadarWallpaperService extends WallpaperService {
         private String radarHost,radarPath; private long lastMeta;
         private List<FlightCalendar.Leg> flightLegs=Collections.emptyList(); private long lastFlightLoad;
         private SharedPreferences prefs; private LocationManager locations;
-        private FlightCalendar.Leg animatedArrival;private List<FlightCalendar.Leg> arrivalSequence=Collections.emptyList();private int arrivalIndex,unlockChecks;private long animationStarted;private boolean receiverRegistered,animateWholeArrival;private volatile boolean unlockPending;private Bitmap animationFrame;
+        private FlightCalendar.Leg animatedArrival;private List<FlightCalendar.Leg> arrivalSequence=Collections.emptyList();private int arrivalIndex,unlockChecks;private long animationStarted;private boolean receiverRegistered,animateWholeArrival;private volatile boolean unlockPending;private Bitmap animationFrame,animationBase;
         private final BroadcastReceiver unlockReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){if(Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){unlockPending=true;unlockChecks=0;if(worker!=null)worker.removeCallbacks(unlockAnimation);}else if(Intent.ACTION_USER_PRESENT.equals(intent.getAction())){unlockPending=true;scheduleUnlockAnimation();}else if(ACTION_REFRESH_TRACKS.equals(intent.getAction())&&worker!=null)worker.post(()->{lastFlightLoad=0;loadFlightTrails();drawFrame();});}};
         private final Runnable unlockAnimation=new Runnable(){@Override public void run(){if(!visible||!unlockPending)return;android.app.KeyguardManager keyguard=(android.app.KeyguardManager)getSystemService(KEYGUARD_SERVICE);if(keyguard!=null&&keyguard.isKeyguardLocked()){if(unlockChecks++<80&&worker!=null)worker.postDelayed(this,250);return;}unlockPending=false;unlockChecks=0;startArrivalAnimation();}};
         private final Runnable nextArrival=this::startNextArrival;
-        private final Runnable arrivalAnimation=new Runnable(){@Override public void run(){if(worker==null||!visible||animatedArrival==null){stopArrivalAnimation(false);return;}float progress=Math.min(1f,(SystemClock.uptimeMillis()-animationStarted)/5500f);drawArrivalFrame(progress);if(progress<1f)worker.postDelayed(this,50);else if(arrivalIndex+1<arrivalSequence.size()){if(lastFrame!=null)postFrame(lastFrame);animatedArrival=null;arrivalIndex++;worker.postDelayed(nextArrival,1000);}else stopArrivalAnimation(true);}};
+        private final Runnable arrivalAnimation=new Runnable(){@Override public void run(){if(worker==null||!visible||animatedArrival==null){stopArrivalAnimation(false);return;}float progress=Math.min(1f,(SystemClock.uptimeMillis()-animationStarted)/5500f);drawArrivalFrame(progress);if(progress<1f)worker.postDelayed(this,50);else if(arrivalIndex+1<arrivalSequence.size()){commitAnimatedArrival();animatedArrival=null;arrivalIndex++;worker.postDelayed(nextArrival,1000);}else stopArrivalAnimation(true);}};
         private final Runnable refresh=new Runnable(){
             @Override public void run(){
                 try{
@@ -65,7 +65,7 @@ public class RadarWallpaperService extends WallpaperService {
         }
         @Override public void onDestroy(){
             stopLocation();if(receiverRegistered)try{RadarWallpaperService.this.unregisterReceiver(unlockReceiver);}catch(Exception ignored){}if(worker!=null)worker.removeCallbacksAndMessages(null);if(thread!=null)thread.quitSafely();
-            cache.clear();if(animationFrame!=null&&!animationFrame.isRecycled())animationFrame.recycle();animationFrame=null;baseMap=null;lastFrame=null;geography=null;super.onDestroy();
+            cache.clear();recycle(animationFrame);recycle(animationBase);recycle(lastFrameWithoutFlights);animationFrame=null;animationBase=null;lastFrameWithoutFlights=null;baseMap=null;lastFrame=null;geography=null;super.onDestroy();
         }
         @Override public void onVisibilityChanged(boolean v){
             visible=v;if(worker==null)return;worker.removeCallbacks(refresh);
@@ -129,12 +129,20 @@ public class RadarWallpaperService extends WallpaperService {
                         if(radar!=null){paint.setAlpha((int)(255*prefs.getInt("opacity",72)/100f));c.drawBitmap(radar,null,new RectF(left,top,left+drawTile,top+drawTile),paint);}
                     }
                 }
+                Bitmap clean=frame.copy(Bitmap.Config.ARGB_8888,true);
+                drawLocationMarker(new Canvas(clean),w,h);
                 FlightCalendar.draw(c,flightLegs,lat,lon,z,w,h,viewW,viewH,prefs);
-                paint.setColor(Color.rgb(226,244,249));paint.setAlpha(240);paint.setStyle(Paint.Style.FILL);c.drawCircle(w/2f,h/2f,5,paint);
-                paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);paint.setColor(Color.rgb(22,51,65));c.drawCircle(w/2f,h/2f,9,paint);paint.setStyle(Paint.Style.FILL);
-                postFrame(frame);Bitmap old=lastFrame;lastFrame=frame;frame=null;
+                drawLocationMarker(c,w,h);
+                if(animationBase==null)postFrame(frame);Bitmap old=lastFrame;lastFrame=frame;frame=null;
+                Bitmap oldClean=lastFrameWithoutFlights;lastFrameWithoutFlights=clean;
                 if(old!=null&&old!=baseMap&&!old.isRecycled())old.recycle();
+                recycle(oldClean);
             }catch(Throwable ignored){}finally{if(frame!=null&&!frame.isRecycled())frame.recycle();}
+        }
+
+        private void drawLocationMarker(Canvas canvas,int width,int height){
+            paint.setColor(Color.rgb(226,244,249));paint.setAlpha(240);paint.setStyle(Paint.Style.FILL);canvas.drawCircle(width/2f,height/2f,5,paint);
+            paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);paint.setColor(Color.rgb(22,51,65));canvas.drawCircle(width/2f,height/2f,9,paint);paint.setStyle(Paint.Style.FILL);
         }
 
         private void postFrame(Bitmap frame){
@@ -220,20 +228,27 @@ public class RadarWallpaperService extends WallpaperService {
         }
 
         private void startArrivalAnimation(){
-            if(isPreview()||!visible||!prefs.getBoolean("animate_arrival_unlock",true)||!prefs.getBoolean("flight_trails",false))return;loadFlightTrails();long now=System.currentTimeMillis();FlightCalendar.Leg latest=null;for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(latest==null||leg.end>latest.end))latest=leg;if(latest==null)return;ArrayList<FlightCalendar.Leg> sequence=new ArrayList<>();for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(sameLocalDay(leg.start,latest.end)||sameLocalDay(leg.end,latest.end)))sequence.add(leg);sequence.sort(Comparator.comparingLong(leg->leg.start));if(sequence.isEmpty())return;if(lastFrame==null)drawFrame();if(lastFrame==null)return;worker.removeCallbacks(refresh);stopArrivalAnimation(false);arrivalSequence=sequence;arrivalIndex=0;animationFrame=Bitmap.createBitmap(lastFrame.getWidth(),lastFrame.getHeight(),Bitmap.Config.ARGB_8888);startNextArrival();
+            if(isPreview()||!visible||!prefs.getBoolean("animate_arrival_unlock",true)||!prefs.getBoolean("flight_trails",false))return;loadFlightTrails();long now=System.currentTimeMillis();FlightCalendar.Leg latest=null;for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(latest==null||leg.end>latest.end))latest=leg;if(latest==null)return;ArrayList<FlightCalendar.Leg> sequence=new ArrayList<>();for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(sameLocalDay(leg.start,latest.end)||sameLocalDay(leg.end,latest.end)))sequence.add(leg);sequence.sort(Comparator.comparingLong(leg->leg.start));if(sequence.isEmpty())return;if(lastFrameWithoutFlights==null)drawFrame();Bitmap clean=lastFrameWithoutFlights;if(clean==null||clean.isRecycled())return;worker.removeCallbacks(refresh);stopArrivalAnimation(false);arrivalSequence=sequence;arrivalIndex=0;animationBase=clean.copy(Bitmap.Config.ARGB_8888,true);animationFrame=Bitmap.createBitmap(clean.getWidth(),clean.getHeight(),Bitmap.Config.ARGB_8888);postFrame(animationBase);startNextArrival();
         }
 
         private void scheduleUnlockAnimation(){if(worker==null||!visible||!unlockPending)return;worker.removeCallbacks(unlockAnimation);worker.postDelayed(unlockAnimation,180);}
 
-        private void startNextArrival(){if(!visible||arrivalIndex>=arrivalSequence.size()){stopArrivalAnimation(false);return;}animatedArrival=arrivalSequence.get(arrivalIndex);animateWholeArrival=arrivalSequence.size()>1&&arrivalIndex==arrivalSequence.size()-1&&FlightCalendar.routeFits(animatedArrival,lat,lon,prefs.getInt("zoom",6),animationFrame.getWidth(),animationFrame.getHeight(),surfaceWidth,surfaceHeight);animationStarted=SystemClock.uptimeMillis();worker.post(arrivalAnimation);}
+        private void startNextArrival(){if(!visible||arrivalIndex>=arrivalSequence.size()||animationFrame==null){stopArrivalAnimation(false);return;}animatedArrival=arrivalSequence.get(arrivalIndex);animateWholeArrival=arrivalSequence.size()>1&&arrivalIndex==arrivalSequence.size()-1&&FlightCalendar.routeFits(animatedArrival,lat,lon,prefs.getInt("zoom",6),animationFrame.getWidth(),animationFrame.getHeight(),surfaceWidth,surfaceHeight);animationStarted=SystemClock.uptimeMillis();worker.postDelayed(arrivalAnimation,300);}
 
         private boolean sameLocalDay(long first,long second){Calendar a=Calendar.getInstance(),b=Calendar.getInstance();a.setTimeInMillis(first);b.setTimeInMillis(second);return a.get(Calendar.ERA)==b.get(Calendar.ERA)&&a.get(Calendar.YEAR)==b.get(Calendar.YEAR)&&a.get(Calendar.DAY_OF_YEAR)==b.get(Calendar.DAY_OF_YEAR);}
 
         private void drawArrivalFrame(float progress){
-            Bitmap source=lastFrame,frame=animationFrame;try{if(source==null||source.isRecycled()||frame==null||frame.isRecycled())return;Canvas canvas=new Canvas(frame);paint.setAlpha(255);paint.setStyle(Paint.Style.FILL);canvas.drawBitmap(source,0,0,paint);FlightCalendar.drawArrivalAnimation(canvas,animatedArrival,progress,animateWholeArrival,lat,lon,prefs.getInt("zoom",6),frame.getWidth(),frame.getHeight(),surfaceWidth,surfaceHeight,prefs);postFrame(frame);}catch(Throwable ignored){}
+            Bitmap source=animationBase,frame=animationFrame;try{if(source==null||source.isRecycled()||frame==null||frame.isRecycled())return;Canvas canvas=new Canvas(frame);paint.setAlpha(255);paint.setStyle(Paint.Style.FILL);canvas.drawBitmap(source,0,0,paint);FlightCalendar.drawArrivalAnimation(canvas,animatedArrival,progress,animateWholeArrival,lat,lon,prefs.getInt("zoom",6),frame.getWidth(),frame.getHeight(),surfaceWidth,surfaceHeight,prefs);postFrame(frame);}catch(Throwable ignored){}
         }
 
-        private void stopArrivalAnimation(boolean restore){if(worker!=null){worker.removeCallbacks(arrivalAnimation);worker.removeCallbacks(nextArrival);}animatedArrival=null;animateWholeArrival=false;arrivalSequence=Collections.emptyList();arrivalIndex=0;if(restore&&lastFrame!=null)postFrame(lastFrame);if(animationFrame!=null&&!animationFrame.isRecycled())animationFrame.recycle();animationFrame=null;if(restore&&visible&&worker!=null){worker.removeCallbacks(refresh);worker.post(refresh);}}
+        private void commitAnimatedArrival(){
+            if(animationBase==null||animationBase.isRecycled()||animatedArrival==null)return;
+            FlightCalendar.drawCompletedArrival(new Canvas(animationBase),animatedArrival,animateWholeArrival,lat,lon,prefs.getInt("zoom",6),animationBase.getWidth(),animationBase.getHeight(),surfaceWidth,surfaceHeight,prefs);postFrame(animationBase);
+        }
+
+        private void stopArrivalAnimation(boolean restore){if(worker!=null){worker.removeCallbacks(arrivalAnimation);worker.removeCallbacks(nextArrival);}animatedArrival=null;animateWholeArrival=false;arrivalSequence=Collections.emptyList();arrivalIndex=0;if(restore&&lastFrame!=null)postFrame(lastFrame);recycle(animationFrame);recycle(animationBase);animationFrame=null;animationBase=null;if(restore&&visible&&worker!=null){worker.removeCallbacks(refresh);worker.post(refresh);}}
+
+        private void recycle(Bitmap bitmap){if(bitmap!=null&&!bitmap.isRecycled()&&bitmap!=baseMap&&bitmap!=lastFrame)bitmap.recycle();}
 
         private void drawFallback(){
             if(lastFrame!=null){postFrame(lastFrame);return;}

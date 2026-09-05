@@ -58,9 +58,18 @@ final class FlightCalendar {
     }
 
     static void drawArrivalAnimation(Canvas canvas,Leg leg,float progress,boolean wholeRoute,double centerLat,double centerLon,int zoom,int bitmapW,int bitmapH,int surfaceW,int surfaceH,SharedPreferences prefs){
-        if(leg==null)return;float routeStart=wholeRoute?0f:.68f,eased=1f-(1f-progress)*(1f-progress),routeProgress=routeStart+(1f-routeStart)*eased,tailStart=Math.max(routeStart,routeProgress-.055f);double world=256.0*(1<<zoom),cx=worldX(centerLon,world),cy=worldY(centerLat,world);int colour=prefs.getInt("flight_trail_color",Color.rgb(126,207,214)),accent=vivid(colour);float scale=Math.max(.75f,bitmapW/900f);Path tail=new Path();float headX=0,headY=0;
-        for(int i=0;i<=14;i++){float fraction=tailStart+(routeProgress-tailStart)*i/14f;double[] point=routePoint(leg,fraction);float x=screenX(point[1],world,cx,bitmapW,surfaceW),y=(float)(((worldY(point[0],world)-cy)*bitmapH/surfaceH)+bitmapH/2.0);if(i==0)tail.moveTo(x,y);else tail.lineTo(x,y);headX=x;headY=y;}
-        Paint glow=new Paint(Paint.ANTI_ALIAS_FLAG);glow.setStyle(Paint.Style.STROKE);glow.setStrokeCap(Paint.Cap.ROUND);glow.setStrokeWidth(6f*scale);glow.setColor(withAlpha(colour,45));canvas.drawPath(tail,glow);glow.setStrokeWidth(2.2f*scale);glow.setColor(withAlpha(colour,205));canvas.drawPath(tail,glow);
+        drawArrival(canvas,leg,progress,wholeRoute,true,centerLat,centerLon,zoom,bitmapW,bitmapH,surfaceW,surfaceH,prefs);
+    }
+
+    static void drawCompletedArrival(Canvas canvas,Leg leg,boolean wholeRoute,double centerLat,double centerLon,int zoom,int bitmapW,int bitmapH,int surfaceW,int surfaceH,SharedPreferences prefs){
+        drawArrival(canvas,leg,1f,wholeRoute,false,centerLat,centerLon,zoom,bitmapW,bitmapH,surfaceW,surfaceH,prefs);
+    }
+
+    private static void drawArrival(Canvas canvas,Leg leg,float progress,boolean wholeRoute,boolean showMarker,double centerLat,double centerLon,int zoom,int bitmapW,int bitmapH,int surfaceW,int surfaceH,SharedPreferences prefs){
+        if(leg==null)return;float routeStart=wholeRoute?0f:.68f,eased=1f-(1f-progress)*(1f-progress),routeProgress=routeStart+(1f-routeStart)*eased;double world=256.0*(1<<zoom),cx=worldX(centerLon,world),cy=worldY(centerLat,world);int colour=prefs.getInt("flight_trail_color",Color.rgb(126,207,214)),accent=vivid(colour);float scale=Math.max(.75f,bitmapW/900f);Path trace=new Path();float headX=0,headY=0;int steps=Math.max(1,(int)Math.ceil(64*(routeProgress-routeStart)));
+        for(int i=0;i<=steps;i++){float fraction=routeStart+(routeProgress-routeStart)*i/steps;double[] point=routePoint(leg,fraction);float x=screenX(point[1],world,cx,bitmapW,surfaceW),y=(float)(((worldY(point[0],world)-cy)*bitmapH/surfaceH)+bitmapH/2.0);if(i==0)trace.moveTo(x,y);else trace.lineTo(x,y);headX=x;headY=y;}
+        Paint glow=new Paint(Paint.ANTI_ALIAS_FLAG);glow.setStyle(Paint.Style.STROKE);glow.setStrokeCap(Paint.Cap.ROUND);glow.setStrokeJoin(Paint.Join.ROUND);glow.setStrokeWidth(6f*scale);glow.setColor(withAlpha(colour,45));canvas.drawPath(trace,glow);glow.setStrokeWidth(2.2f*scale);glow.setColor(withAlpha(colour,205));canvas.drawPath(trace,glow);
+        if(!showMarker)return;
         glow.setStyle(Paint.Style.FILL);glow.setColor(withAlpha(accent,55));canvas.drawCircle(headX,headY,14f*scale,glow);glow.setColor(withAlpha(accent,145));canvas.drawCircle(headX,headY,8f*scale,glow);glow.setColor(withAlpha(accent,255));canvas.drawCircle(headX,headY,4.6f*scale,glow);glow.setColor(Color.WHITE);glow.setAlpha(235);canvas.drawCircle(headX,headY,1.6f*scale,glow);
         if(progress>.82f){float pulse=(progress-.82f)/.18f;glow.setStyle(Paint.Style.STROKE);glow.setStrokeWidth(1.4f*scale);glow.setColor(withAlpha(colour,Math.round(150*(1-pulse))));double[] destination=routePoint(leg,1f);float dx=screenX(destination[1],world,cx,bitmapW,surfaceW),dy=(float)(((worldY(destination[0],world)-cy)*bitmapH/surfaceH)+bitmapH/2.0);canvas.drawCircle(dx,dy,(5f+15f*pulse)*scale,glow);}
     }
