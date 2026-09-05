@@ -16,6 +16,7 @@ import java.security.MessageDigest;
 import java.util.*;
 
 public class RadarWallpaperService extends WallpaperService {
+    static final String ACTION_REFRESH_TRACKS="com.ketelcustoms.radarwallpaper.REFRESH_TRACKS";
     @Override public Engine onCreateEngine() { return new RadarEngine(); }
 
     private final class RadarEngine extends Engine implements LocationListener {
@@ -33,8 +34,8 @@ public class RadarWallpaperService extends WallpaperService {
         private String radarHost,radarPath; private long lastMeta;
         private List<FlightCalendar.Leg> flightLegs=Collections.emptyList(); private long lastFlightLoad;
         private SharedPreferences prefs; private LocationManager locations;
-        private FlightCalendar.Leg animatedArrival;private List<FlightCalendar.Leg> arrivalSequence=Collections.emptyList();private int arrivalIndex,unlockChecks;private long animationStarted;private boolean receiverRegistered;private volatile boolean unlockPending;private Bitmap animationFrame;
-        private final BroadcastReceiver unlockReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){if(Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){unlockPending=true;unlockChecks=0;if(worker!=null)worker.removeCallbacks(unlockAnimation);}else if(Intent.ACTION_USER_PRESENT.equals(intent.getAction())){unlockPending=true;scheduleUnlockAnimation();}}};
+        private FlightCalendar.Leg animatedArrival;private List<FlightCalendar.Leg> arrivalSequence=Collections.emptyList();private int arrivalIndex,unlockChecks;private long animationStarted;private boolean receiverRegistered,animateWholeArrival;private volatile boolean unlockPending;private Bitmap animationFrame;
+        private final BroadcastReceiver unlockReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){if(Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){unlockPending=true;unlockChecks=0;if(worker!=null)worker.removeCallbacks(unlockAnimation);}else if(Intent.ACTION_USER_PRESENT.equals(intent.getAction())){unlockPending=true;scheduleUnlockAnimation();}else if(ACTION_REFRESH_TRACKS.equals(intent.getAction())&&worker!=null)worker.post(()->{lastFlightLoad=0;loadFlightTrails();drawFrame();});}};
         private final Runnable unlockAnimation=new Runnable(){@Override public void run(){if(!visible||!unlockPending)return;android.app.KeyguardManager keyguard=(android.app.KeyguardManager)getSystemService(KEYGUARD_SERVICE);if(keyguard!=null&&keyguard.isKeyguardLocked()){if(unlockChecks++<80&&worker!=null)worker.postDelayed(this,250);return;}unlockPending=false;unlockChecks=0;startArrivalAnimation();}};
         private final Runnable nextArrival=this::startNextArrival;
         private final Runnable arrivalAnimation=new Runnable(){@Override public void run(){if(worker==null||!visible||animatedArrival==null){stopArrivalAnimation(false);return;}float progress=Math.min(1f,(SystemClock.uptimeMillis()-animationStarted)/5500f);drawArrivalFrame(progress);if(progress<1f)worker.postDelayed(this,50);else if(arrivalIndex+1<arrivalSequence.size()){if(lastFrame!=null)postFrame(lastFrame);animatedArrival=null;arrivalIndex++;worker.postDelayed(nextArrival,1000);}else stopArrivalAnimation(true);}};
@@ -60,7 +61,7 @@ public class RadarWallpaperService extends WallpaperService {
             locations=(LocationManager)getSystemService(LOCATION_SERVICE);
             radarCacheDir=new File(getCacheDir(),"radar-tiles");if(!radarCacheDir.exists())radarCacheDir.mkdirs();
             radarHost=prefs.getString("radar_host",null);radarPath=prefs.getString("radar_path",null);
-            try{IntentFilter filter=new IntentFilter(Intent.ACTION_USER_PRESENT);filter.addAction(Intent.ACTION_SCREEN_OFF);if(Build.VERSION.SDK_INT>=33)RadarWallpaperService.this.registerReceiver(unlockReceiver,filter,Context.RECEIVER_NOT_EXPORTED);else RadarWallpaperService.this.registerReceiver(unlockReceiver,filter);receiverRegistered=true;}catch(Exception ignored){}
+            try{IntentFilter filter=new IntentFilter(Intent.ACTION_USER_PRESENT);filter.addAction(Intent.ACTION_SCREEN_OFF);filter.addAction(ACTION_REFRESH_TRACKS);if(Build.VERSION.SDK_INT>=33)RadarWallpaperService.this.registerReceiver(unlockReceiver,filter,Context.RECEIVER_NOT_EXPORTED);else RadarWallpaperService.this.registerReceiver(unlockReceiver,filter);receiverRegistered=true;}catch(Exception ignored){}
         }
         @Override public void onDestroy(){
             stopLocation();if(receiverRegistered)try{RadarWallpaperService.this.unregisterReceiver(unlockReceiver);}catch(Exception ignored){}if(worker!=null)worker.removeCallbacksAndMessages(null);if(thread!=null)thread.quitSafely();
@@ -224,15 +225,15 @@ public class RadarWallpaperService extends WallpaperService {
 
         private void scheduleUnlockAnimation(){if(worker==null||!visible||!unlockPending)return;worker.removeCallbacks(unlockAnimation);worker.postDelayed(unlockAnimation,180);}
 
-        private void startNextArrival(){if(!visible||arrivalIndex>=arrivalSequence.size()){stopArrivalAnimation(false);return;}animatedArrival=arrivalSequence.get(arrivalIndex);animationStarted=SystemClock.uptimeMillis();worker.post(arrivalAnimation);}
+        private void startNextArrival(){if(!visible||arrivalIndex>=arrivalSequence.size()){stopArrivalAnimation(false);return;}animatedArrival=arrivalSequence.get(arrivalIndex);animateWholeArrival=arrivalSequence.size()>1&&arrivalIndex==arrivalSequence.size()-1&&FlightCalendar.routeFits(animatedArrival,lat,lon,prefs.getInt("zoom",6),animationFrame.getWidth(),animationFrame.getHeight(),surfaceWidth,surfaceHeight);animationStarted=SystemClock.uptimeMillis();worker.post(arrivalAnimation);}
 
         private boolean sameLocalDay(long first,long second){Calendar a=Calendar.getInstance(),b=Calendar.getInstance();a.setTimeInMillis(first);b.setTimeInMillis(second);return a.get(Calendar.ERA)==b.get(Calendar.ERA)&&a.get(Calendar.YEAR)==b.get(Calendar.YEAR)&&a.get(Calendar.DAY_OF_YEAR)==b.get(Calendar.DAY_OF_YEAR);}
 
         private void drawArrivalFrame(float progress){
-            Bitmap source=lastFrame,frame=animationFrame;try{if(source==null||source.isRecycled()||frame==null||frame.isRecycled())return;Canvas canvas=new Canvas(frame);paint.setAlpha(255);paint.setStyle(Paint.Style.FILL);canvas.drawBitmap(source,0,0,paint);FlightCalendar.drawArrivalAnimation(canvas,animatedArrival,progress,lat,lon,prefs.getInt("zoom",6),frame.getWidth(),frame.getHeight(),surfaceWidth,surfaceHeight,prefs);postFrame(frame);}catch(Throwable ignored){}
+            Bitmap source=lastFrame,frame=animationFrame;try{if(source==null||source.isRecycled()||frame==null||frame.isRecycled())return;Canvas canvas=new Canvas(frame);paint.setAlpha(255);paint.setStyle(Paint.Style.FILL);canvas.drawBitmap(source,0,0,paint);FlightCalendar.drawArrivalAnimation(canvas,animatedArrival,progress,animateWholeArrival,lat,lon,prefs.getInt("zoom",6),frame.getWidth(),frame.getHeight(),surfaceWidth,surfaceHeight,prefs);postFrame(frame);}catch(Throwable ignored){}
         }
 
-        private void stopArrivalAnimation(boolean restore){if(worker!=null){worker.removeCallbacks(arrivalAnimation);worker.removeCallbacks(nextArrival);}animatedArrival=null;arrivalSequence=Collections.emptyList();arrivalIndex=0;if(restore&&lastFrame!=null)postFrame(lastFrame);if(animationFrame!=null&&!animationFrame.isRecycled())animationFrame.recycle();animationFrame=null;if(restore&&visible&&worker!=null){worker.removeCallbacks(refresh);worker.post(refresh);}}
+        private void stopArrivalAnimation(boolean restore){if(worker!=null){worker.removeCallbacks(arrivalAnimation);worker.removeCallbacks(nextArrival);}animatedArrival=null;animateWholeArrival=false;arrivalSequence=Collections.emptyList();arrivalIndex=0;if(restore&&lastFrame!=null)postFrame(lastFrame);if(animationFrame!=null&&!animationFrame.isRecycled())animationFrame.recycle();animationFrame=null;if(restore&&visible&&worker!=null){worker.removeCallbacks(refresh);worker.post(refresh);}}
 
         private void drawFallback(){
             if(lastFrame!=null){postFrame(lastFrame);return;}

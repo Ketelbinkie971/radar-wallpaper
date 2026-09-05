@@ -8,8 +8,8 @@ android {
         applicationId = "com.ketelcustoms.radarwallpaper"
         minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "0.29"
+        versionCode = 31
+        versionName = "0.31"
     }
 
     buildTypes {
