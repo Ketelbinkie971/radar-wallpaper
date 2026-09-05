@@ -43,6 +43,7 @@ public class RadarWallpaperService extends WallpaperService {
                     loadRadarMetadata();
                     if(radarPath!=null&&!radarPath.equals(previousPath))drawFrame();
                     trimDiskCache();
+                    if(OpenSkyTracks.downloadMissing(getApplicationContext(),prefs,flightLegs,System.currentTimeMillis()))drawFrame();
                 }catch(Throwable ignored){drawFallback();}
                 finally{if(visible&&worker!=null)worker.postDelayed(this,10*60_000L);}
             }
@@ -208,7 +209,7 @@ public class RadarWallpaperService extends WallpaperService {
 
         private void loadFlightTrails(){
             long now=System.currentTimeMillis();if(now-lastFlightLoad<5*60_000L)return;
-            flightLegs=FlightCalendar.load(getApplicationContext(),prefs,now);lastFlightLoad=now;
+            flightLegs=FlightCalendar.load(getApplicationContext(),prefs,now);OpenSkyTracks.attachCached(getApplicationContext(),flightLegs);lastFlightLoad=now;
         }
 
         private void drawFallback(){

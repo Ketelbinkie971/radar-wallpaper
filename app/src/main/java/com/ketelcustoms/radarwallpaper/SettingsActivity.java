@@ -17,17 +17,20 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.provider.Settings;
 import android.provider.CalendarContract;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import java.util.ArrayList;
+import java.util.List;
 
 public class SettingsActivity extends Activity {
     private SharedPreferences prefs;
@@ -126,7 +129,7 @@ public class SettingsActivity extends Activity {
 
     private void addFlightTrailsSection(LinearLayout root){
         TextView heading=text("FLIGHT TRAILS",15);heading.setTypeface(Typeface.DEFAULT_BOLD);heading.setPadding(0,dp(24),0,dp(4));root.addView(heading);
-        TextView explanation=text("Draws quiet great-circle routes from one selected calendar: seven days into the past and seven days ahead. Past routes lose colour as they age; future routes become more transparent.",13);explanation.setTextColor(Color.rgb(154,174,183));root.addView(explanation);
+        TextView explanation=text("Draws routes from one selected calendar: seven days into the past and seven days ahead. Past routes use their recorded OpenSky track when available and otherwise remain great circles. Future routes are always great circles.",13);explanation.setTextColor(Color.rgb(154,174,183));root.addView(explanation);
         boolean allowed=checkSelfPermission(Manifest.permission.READ_CALENDAR)==PackageManager.PERMISSION_GRANTED;boolean enabled=prefs.getBoolean("flight_trails",false);long selectedId=prefs.getLong("flight_calendar_id",-1);
         CheckBox toggle=new CheckBox(this);toggle.setText("Show flight trails");toggle.setTextSize(16);toggle.setTextColor(Color.rgb(220,230,235));toggle.setChecked(enabled);toggle.setOnCheckedChangeListener((button,checked)->{prefs.edit().putBoolean("flight_trails",checked).apply();if(checked&&!allowed)requestPermissions(new String[]{Manifest.permission.READ_CALENDAR},30);else render();});root.addView(toggle);
         TextView status=text(!allowed?"Calendar access: not allowed":selectedId<0?"Calendar: none selected":"Calendar: "+prefs.getString("flight_calendar_name","Selected calendar"),14);status.setTextColor(allowed&&selectedId>=0?Color.rgb(130,190,165):Color.rgb(210,175,105));root.addView(status);
@@ -135,6 +138,26 @@ public class SettingsActivity extends Activity {
         int weight=prefs.getInt("flight_trail_width",2);TextView weightLabel=text("Flight-line weight: "+(weight==1?"very fine":weight==2?"fine":weight==3?"medium":"bold"),14);root.addView(weightLabel);
         SeekBar width=new SeekBar(this);width.setMax(3);width.setProgress(weight-1);width.setOnSeekBarChangeListener(listener(p->{int chosen=p+1;prefs.edit().putInt("flight_trail_width",chosen).apply();weightLabel.setText("Flight-line weight: "+(chosen==1?"very fine":chosen==2?"fine":chosen==3?"medium":"bold"));}));root.addView(width);
         Button colour=new Button(this);colour.setText("Trail colour");colour.setOnClickListener(v->chooseTrailColour());root.addView(colour);
+        addOpenSkySection(root,enabled&&allowed&&selectedId>=0);
+    }
+
+    private void addOpenSkySection(LinearLayout root,boolean calendarReady){
+        TextView heading=text("ACTUAL PAST TRACKS",14);heading.setTypeface(Typeface.DEFAULT_BOLD);heading.setPadding(0,dp(18),0,dp(2));root.addView(heading);
+        TextView explanation=text("Optional OpenSky lookup for completed flights. Your API credentials stay in this app's private storage, tracks are saved on this phone, and unmatched flights keep their great-circle line.",13);explanation.setTextColor(Color.rgb(154,174,183));root.addView(explanation);
+        boolean enabled=prefs.getBoolean("opensky_actual_tracks",false),configured=!prefs.getString("opensky_client_id","").isEmpty()&&!prefs.getString("opensky_client_secret","").isEmpty();
+        CheckBox actual=new CheckBox(this);actual.setText("Use recorded OpenSky tracks");actual.setTextSize(16);actual.setTextColor(Color.rgb(220,230,235));actual.setChecked(enabled);actual.setOnCheckedChangeListener((button,checked)->{prefs.edit().putBoolean("opensky_actual_tracks",checked).apply();if(checked&&!configured)mainHandler.postDelayed(this::editOpenSkyCredentials,100);});root.addView(actual);
+        TextView status=text(configured?"OpenSky credentials: saved on this phone":"OpenSky credentials: not configured",13);status.setTextColor(configured?Color.rgb(130,190,165):Color.rgb(210,175,105));root.addView(status);
+        if(calendarReady){List<FlightCalendar.Leg> legs=FlightCalendar.load(this,prefs,System.currentTimeMillis());TextView cached=text("Recorded tracks cached: "+OpenSkyTracks.cachedCount(this,legs),13);cached.setTextColor(Color.rgb(154,174,183));root.addView(cached);}
+        Button credentials=new Button(this);credentials.setText(configured?"Edit OpenSky credentials":"Enter OpenSky credentials");credentials.setOnClickListener(v->editOpenSkyCredentials());root.addView(credentials);
+        Button account=new Button(this);account.setText("Open free OpenSky account page");account.setOnClickListener(v->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://opensky-network.org/my-opensky/account"))));root.addView(account);
+        if(configured){Button forget=new Button(this);forget.setText("Forget OpenSky credentials");forget.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle("Forget credentials?").setMessage("Downloaded tracks will remain cached, but no new actual tracks will be fetched.").setPositiveButton("Forget",(dialog,which)->{prefs.edit().remove("opensky_client_id").remove("opensky_client_secret").putBoolean("opensky_actual_tracks",false).apply();render();}).setNegativeButton("Cancel",null).show());root.addView(forget);}
+    }
+
+    private void editOpenSkyCredentials(){
+        LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);fields.setPadding(dp(24),0,dp(24),0);
+        EditText client=new EditText(this);client.setHint("Client ID");client.setSingleLine(true);client.setText(prefs.getString("opensky_client_id",""));fields.addView(client);
+        EditText secret=new EditText(this);secret.setHint(prefs.getString("opensky_client_secret","").isEmpty()?"Client secret":"Client secret (leave blank to keep saved value)");secret.setSingleLine(true);secret.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);fields.addView(secret);
+        new android.app.AlertDialog.Builder(this).setTitle("OpenSky API credentials").setMessage("Create a free API Client on your OpenSky account page, then paste its client ID and client secret here.").setView(fields).setPositiveButton("Save",(dialog,which)->{String id=client.getText().toString().trim(),newSecret=secret.getText().toString().trim(),chosenSecret=newSecret.isEmpty()?prefs.getString("opensky_client_secret",""):newSecret;prefs.edit().putString("opensky_client_id",id).putString("opensky_client_secret",chosenSecret).putBoolean("opensky_actual_tracks",!id.isEmpty()&&!chosenSecret.isEmpty()).apply();render();}).setNegativeButton("Cancel",null).show();
     }
 
     private void chooseCalendar(){

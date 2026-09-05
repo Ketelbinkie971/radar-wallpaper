@@ -9,7 +9,8 @@ Minimal Android live wallpaper showing the latest RainViewer precipitation radar
 3. Choose regional scale and opacity.
 4. Tap one of five labelled radar spectra and one of five miniature Sjælland map previews.
 5. Optionally enable **Flight Trails**, allow calendar access, and choose the one calendar containing your flights.
-6. Tap **Set live wallpaper**, preview, and apply.
+6. To replace great circles for completed flights with recorded ADS-B paths, create a free OpenSky API Client and enter its client ID and secret under **Actual Past Tracks**.
+7. Tap **Set live wallpaper**, preview, and apply.
 
 Double-tap a radar or map preset to edit it. The editor can share the current preset through Android's share sheet. Shared `*.radar.json` and `*.map.json` files can be opened with Radar Wallpaper; the import confirmation screen shows the preset type and lets the recipient choose exactly which same-type slot to overwrite. Preset files contain only the name, type and colours.
 
@@ -20,7 +21,9 @@ If location permission is not granted, the wallpaper defaults to Copenhagen. Loc
 - RainViewer's free public API is limited to zoom 7 and historical/latest radar frames.
 - Radar needs an internet connection; the base map is bundled and works offline.
 - The last radar tiles are cached on disk and shown immediately while a newer frame refreshes.
-- Optional Flight Trails reads one selected on-device calendar and draws great-circle routes for the seven days before and after today. Calendar data never leaves the phone.
+- Optional Flight Trails reads one selected on-device calendar and draws routes for the seven days before and after today. Calendar data never leaves the phone.
+- With locally entered OpenSky credentials, completed flights are matched conservatively by airports, time and flight-number digits. Recorded ADS-B paths are cached in permanent app storage; unmatched and future flights remain great circles.
+- OpenSky credentials are stored only in Android's private app storage. Application backup is disabled so they are not copied into cloud backups. Each person sharing the APK should preferably use their own free OpenSky API Client.
 - Airport coordinates are bundled from the public-domain OurAirports dataset; Flight Trails requires no FlightRadar24 account, API, or server.
 - Country polygons are unwrapped across the international date line to prevent map-fill seams.
 - Frames are assembled off-screen so slow network requests never hold Android's wallpaper surface open.
