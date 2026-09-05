@@ -169,7 +169,7 @@ public class SettingsActivity extends Activity {
     }
 
     private void chooseTrailColour(){
-        String[] names={"Glacier","Mint","Lavender","Amber","Coral"};int[] colours={Color.rgb(126,207,214),Color.rgb(133,211,169),Color.rgb(177,159,222),Color.rgb(224,183,105),Color.rgb(224,130,121)};
+        String[] names={"Glacier","Bright Mint","Lavender","Amber","Bright Coral"};int[] colours={Color.rgb(126,207,214),Color.rgb(72,238,166),Color.rgb(177,159,222),Color.rgb(224,183,105),Color.rgb(255,112,105)};
         new android.app.AlertDialog.Builder(this).setTitle("Flight-trail colour").setItems(names,(dialog,which)->prefs.edit().putInt("flight_trail_color",colours[which]).apply()).setNegativeButton("Cancel",null).show();
     }
 

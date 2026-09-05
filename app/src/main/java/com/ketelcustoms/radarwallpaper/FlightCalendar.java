@@ -58,10 +58,10 @@ final class FlightCalendar {
     }
 
     static void drawArrivalAnimation(Canvas canvas,Leg leg,float progress,double centerLat,double centerLon,int zoom,int bitmapW,int bitmapH,int surfaceW,int surfaceH,SharedPreferences prefs){
-        if(leg==null)return;float eased=1f-(1f-progress)*(1f-progress),routeProgress=.68f+.32f*eased,tailStart=Math.max(.68f,routeProgress-.055f);double world=256.0*(1<<zoom),cx=worldX(centerLon,world),cy=worldY(centerLat,world);int colour=prefs.getInt("flight_trail_color",Color.rgb(126,207,214));float scale=Math.max(.75f,bitmapW/900f);Path tail=new Path();float headX=0,headY=0;
+        if(leg==null)return;float eased=1f-(1f-progress)*(1f-progress),routeProgress=.68f+.32f*eased,tailStart=Math.max(.68f,routeProgress-.055f);double world=256.0*(1<<zoom),cx=worldX(centerLon,world),cy=worldY(centerLat,world);int colour=prefs.getInt("flight_trail_color",Color.rgb(126,207,214)),accent=vivid(colour);float scale=Math.max(.75f,bitmapW/900f);Path tail=new Path();float headX=0,headY=0;
         for(int i=0;i<=14;i++){float fraction=tailStart+(routeProgress-tailStart)*i/14f;double[] point=routePoint(leg,fraction);float x=screenX(point[1],world,cx,bitmapW,surfaceW),y=(float)(((worldY(point[0],world)-cy)*bitmapH/surfaceH)+bitmapH/2.0);if(i==0)tail.moveTo(x,y);else tail.lineTo(x,y);headX=x;headY=y;}
         Paint glow=new Paint(Paint.ANTI_ALIAS_FLAG);glow.setStyle(Paint.Style.STROKE);glow.setStrokeCap(Paint.Cap.ROUND);glow.setStrokeWidth(6f*scale);glow.setColor(withAlpha(colour,45));canvas.drawPath(tail,glow);glow.setStrokeWidth(2.2f*scale);glow.setColor(withAlpha(colour,205));canvas.drawPath(tail,glow);
-        glow.setStyle(Paint.Style.FILL);glow.setColor(withAlpha(colour,42));canvas.drawCircle(headX,headY,11f*scale,glow);glow.setColor(withAlpha(colour,115));canvas.drawCircle(headX,headY,6f*scale,glow);glow.setColor(Color.rgb(238,250,252));glow.setAlpha(245);canvas.drawCircle(headX,headY,2.4f*scale,glow);
+        glow.setStyle(Paint.Style.FILL);glow.setColor(withAlpha(accent,55));canvas.drawCircle(headX,headY,14f*scale,glow);glow.setColor(withAlpha(accent,145));canvas.drawCircle(headX,headY,8f*scale,glow);glow.setColor(withAlpha(accent,255));canvas.drawCircle(headX,headY,4.6f*scale,glow);glow.setColor(Color.WHITE);glow.setAlpha(235);canvas.drawCircle(headX,headY,1.6f*scale,glow);
         if(progress>.82f){float pulse=(progress-.82f)/.18f;glow.setStyle(Paint.Style.STROKE);glow.setStrokeWidth(1.4f*scale);glow.setColor(withAlpha(colour,Math.round(150*(1-pulse))));double[] destination=routePoint(leg,1f);float dx=screenX(destination[1],world,cx,bitmapW,surfaceW),dy=(float)(((worldY(destination[0],world)-cy)*bitmapH/surfaceH)+bitmapH/2.0);canvas.drawCircle(dx,dy,(5f+15f*pulse)*scale,glow);}
     }
 
@@ -71,6 +71,7 @@ final class FlightCalendar {
     }
 
     private static double interpolateLongitude(double from,double to,float mix){double delta=to-from;while(delta>180)delta-=360;while(delta<-180)delta+=360;double value=from+delta*mix;while(value>180)value-=360;while(value<-180)value+=360;return value;}
+    private static int vivid(int colour){float[] hsv=new float[3];Color.colorToHSV(colour,hsv);hsv[1]=Math.max(.62f,hsv[1]);hsv[2]=1f;return Color.HSVToColor(hsv);}
     private static float screenX(double lon,double world,double cx,int width,int surfaceW){double x=worldX(lon,world);while(x-cx>world/2)x-=world;while(x-cx<-world/2)x+=world;return(float)(((x-cx)*width/surfaceW)+width/2.0);}
     private static int withAlpha(int colour,int alpha){return Color.argb(Math.max(0,Math.min(255,alpha)),Color.red(colour),Color.green(colour),Color.blue(colour));}
 
