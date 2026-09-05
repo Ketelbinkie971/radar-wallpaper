@@ -138,6 +138,7 @@ public class SettingsActivity extends Activity {
         int weight=prefs.getInt("flight_trail_width",2);TextView weightLabel=text("Flight-line weight: "+(weight==1?"very fine":weight==2?"fine":weight==3?"medium":"bold"),14);root.addView(weightLabel);
         SeekBar width=new SeekBar(this);width.setMax(3);width.setProgress(weight-1);width.setOnSeekBarChangeListener(listener(p->{int chosen=p+1;prefs.edit().putInt("flight_trail_width",chosen).apply();weightLabel.setText("Flight-line weight: "+(chosen==1?"very fine":chosen==2?"fine":chosen==3?"medium":"bold"));}));root.addView(width);
         Button colour=new Button(this);colour.setText("Trail colour");colour.setOnClickListener(v->chooseTrailColour());root.addView(colour);
+        CheckBox animation=new CheckBox(this);animation.setText("Animate last travel day when unlocking");animation.setTextSize(16);animation.setTextColor(Color.rgb(220,230,235));animation.setChecked(prefs.getBoolean("animate_arrival_unlock",true));animation.setOnCheckedChangeListener((button,checked)->prefs.edit().putBoolean("animate_arrival_unlock",checked).apply());root.addView(animation);
         addOpenSkySection(root,enabled&&allowed&&selectedId>=0);
     }
 

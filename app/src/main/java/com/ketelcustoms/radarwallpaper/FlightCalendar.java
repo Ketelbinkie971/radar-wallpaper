@@ -57,6 +57,23 @@ final class FlightCalendar {
         line.setPathEffect(null);
     }
 
+    static void drawArrivalAnimation(Canvas canvas,Leg leg,float progress,double centerLat,double centerLon,int zoom,int bitmapW,int bitmapH,int surfaceW,int surfaceH,SharedPreferences prefs){
+        if(leg==null)return;float eased=1f-(1f-progress)*(1f-progress),routeProgress=.68f+.32f*eased,tailStart=Math.max(.68f,routeProgress-.055f);double world=256.0*(1<<zoom),cx=worldX(centerLon,world),cy=worldY(centerLat,world);int colour=prefs.getInt("flight_trail_color",Color.rgb(126,207,214));float scale=Math.max(.75f,bitmapW/900f);Path tail=new Path();float headX=0,headY=0;
+        for(int i=0;i<=14;i++){float fraction=tailStart+(routeProgress-tailStart)*i/14f;double[] point=routePoint(leg,fraction);float x=screenX(point[1],world,cx,bitmapW,surfaceW),y=(float)(((worldY(point[0],world)-cy)*bitmapH/surfaceH)+bitmapH/2.0);if(i==0)tail.moveTo(x,y);else tail.lineTo(x,y);headX=x;headY=y;}
+        Paint glow=new Paint(Paint.ANTI_ALIAS_FLAG);glow.setStyle(Paint.Style.STROKE);glow.setStrokeCap(Paint.Cap.ROUND);glow.setStrokeWidth(6f*scale);glow.setColor(withAlpha(colour,45));canvas.drawPath(tail,glow);glow.setStrokeWidth(2.2f*scale);glow.setColor(withAlpha(colour,205));canvas.drawPath(tail,glow);
+        glow.setStyle(Paint.Style.FILL);glow.setColor(withAlpha(colour,42));canvas.drawCircle(headX,headY,11f*scale,glow);glow.setColor(withAlpha(colour,115));canvas.drawCircle(headX,headY,6f*scale,glow);glow.setColor(Color.rgb(238,250,252));glow.setAlpha(245);canvas.drawCircle(headX,headY,2.4f*scale,glow);
+        if(progress>.82f){float pulse=(progress-.82f)/.18f;glow.setStyle(Paint.Style.STROKE);glow.setStrokeWidth(1.4f*scale);glow.setColor(withAlpha(colour,Math.round(150*(1-pulse))));double[] destination=routePoint(leg,1f);float dx=screenX(destination[1],world,cx,bitmapW,surfaceW),dy=(float)(((worldY(destination[0],world)-cy)*bitmapH/surfaceH)+bitmapH/2.0);canvas.drawCircle(dx,dy,(5f+15f*pulse)*scale,glow);}
+    }
+
+    private static double[] routePoint(Leg leg,float fraction){
+        if(leg.actualTrack!=null&&leg.actualTrack.size()>1){int count=leg.actualTrack.size()+1;float position=fraction*(count-1);int lower=Math.min(count-2,(int)Math.floor(position));float mix=position-lower;double[] a=leg.actualTrack.get(Math.min(lower,leg.actualTrack.size()-1)),b=lower+1<leg.actualTrack.size()?leg.actualTrack.get(lower+1):new double[]{leg.toLat,leg.toLon};return new double[]{a[0]+(b[0]-a[0])*mix,interpolateLongitude(a[1],b[1],mix)};}
+        double t=fraction,lat1=Math.toRadians(leg.fromLat),lon1=Math.toRadians(leg.fromLon),lat2=Math.toRadians(leg.toLat),lon2=Math.toRadians(leg.toLon);double[] a={Math.cos(lat1)*Math.cos(lon1),Math.cos(lat1)*Math.sin(lon1),Math.sin(lat1)},b={Math.cos(lat2)*Math.cos(lon2),Math.cos(lat2)*Math.sin(lon2),Math.sin(lat2)};double omega=Math.acos(Math.max(-1,Math.min(1,a[0]*b[0]+a[1]*b[1]+a[2]*b[2]))),sin=Math.sin(omega),x,y,z;if(sin<1e-7){x=a[0]+(b[0]-a[0])*t;y=a[1]+(b[1]-a[1])*t;z=a[2]+(b[2]-a[2])*t;}else{double aa=Math.sin((1-t)*omega)/sin,bb=Math.sin(t*omega)/sin;x=aa*a[0]+bb*b[0];y=aa*a[1]+bb*b[1];z=aa*a[2]+bb*b[2];}return new double[]{Math.toDegrees(Math.atan2(z,Math.sqrt(x*x+y*y))),Math.toDegrees(Math.atan2(y,x))};
+    }
+
+    private static double interpolateLongitude(double from,double to,float mix){double delta=to-from;while(delta>180)delta-=360;while(delta<-180)delta+=360;double value=from+delta*mix;while(value>180)value-=360;while(value<-180)value+=360;return value;}
+    private static float screenX(double lon,double world,double cx,int width,int surfaceW){double x=worldX(lon,world);while(x-cx>world/2)x-=world;while(x-cx<-world/2)x+=world;return(float)(((x-cx)*width/surfaceW)+width/2.0);}
+    private static int withAlpha(int colour,int alpha){return Color.argb(Math.max(0,Math.min(255,alpha)),Color.red(colour),Color.green(colour),Color.blue(colour));}
+
     private static Path projectGreatCircle(Leg leg,double world,double cx,double cy,int w,int h,int surfaceW,int surfaceH){
         final int points=64;double lat1=Math.toRadians(leg.fromLat),lon1=Math.toRadians(leg.fromLon),lat2=Math.toRadians(leg.toLat),lon2=Math.toRadians(leg.toLon);
         double[] a={Math.cos(lat1)*Math.cos(lon1),Math.cos(lat1)*Math.sin(lon1),Math.sin(lat1)},b={Math.cos(lat2)*Math.cos(lon2),Math.cos(lat2)*Math.sin(lon2),Math.sin(lat2)};double omega=Math.acos(Math.max(-1,Math.min(1,a[0]*b[0]+a[1]*b[1]+a[2]*b[2]))),sin=Math.sin(omega);
