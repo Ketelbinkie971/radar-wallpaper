@@ -7,6 +7,7 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -15,15 +16,18 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.provider.Settings;
+import android.provider.CalendarContract;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import java.util.ArrayList;
 
 public class SettingsActivity extends Activity {
     private SharedPreferences prefs;
@@ -58,7 +62,7 @@ public class SettingsActivity extends Activity {
         });
         root.setBackgroundColor(Color.TRANSPARENT);
         root.addView(text("RADAR WALLPAPER", 25));
-        TextView intro = text("A quiet regional radar map that follows you. Your location stays on the phone and is used only to choose visible map tiles.", 15);
+        TextView intro = text("A quiet regional radar map that follows you. Your location stays on the phone and is used only to choose visible map tiles. Optional Flight Trails reads only the calendar you choose; its entries stay on the phone.", 15);
         intro.setTextColor(Color.rgb(155,171,180)); root.addView(intro);
 
         boolean foreground = checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
@@ -95,6 +99,8 @@ public class SettingsActivity extends Activity {
         String[] mapKeys=PresetStore.keys(PresetStore.MAP);
         addMapPreviewSection(root,"MAP COLOURS","map_theme",prefs.getString("map_theme","slate"),mapKeys,presetNames(PresetStore.MAP,mapKeys),presetColours(PresetStore.MAP,mapKeys));
 
+        addFlightTrailsSection(root);
+
         Button apply = new Button(this); apply.setText("Set live wallpaper");
         apply.setOnClickListener(v -> {
             Intent i = new Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER);
@@ -106,12 +112,41 @@ public class SettingsActivity extends Activity {
         credit.setGravity(Gravity.CENTER); credit.setTextColor(Color.rgb(115,135,145));
         credit.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.rainviewer.com/"))));
         root.addView(credit);
+        TextView airportCredit = text("Airport coordinates by OurAirports", 12);
+        airportCredit.setGravity(Gravity.CENTER); airportCredit.setTextColor(Color.rgb(115,135,145));
+        airportCredit.setOnClickListener(v -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://ourairports.com/data/"))));
+        root.addView(airportCredit);
         controls = new ScrollView(this);
         controls.setFillViewport(true); controls.addView(root);
         FrameLayout page=new FrameLayout(this);previewBackground=new TaiwanBackgroundView();page.addView(previewBackground,new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,FrameLayout.LayoutParams.MATCH_PARENT));
         previewScrim=new View(this);previewScrim.setBackgroundColor(Color.BLACK);previewScrim.setAlpha(.64f);page.addView(previewScrim,new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,FrameLayout.LayoutParams.MATCH_PARENT));
         page.addView(controls,new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,FrameLayout.LayoutParams.MATCH_PARENT));setContentView(page);
         root.requestApplyInsets();
+    }
+
+    private void addFlightTrailsSection(LinearLayout root){
+        TextView heading=text("FLIGHT TRAILS",15);heading.setTypeface(Typeface.DEFAULT_BOLD);heading.setPadding(0,dp(24),0,dp(4));root.addView(heading);
+        TextView explanation=text("Draws quiet great-circle routes from one selected calendar: seven days into the past and seven days ahead. Past routes lose colour as they age; future routes become more transparent.",13);explanation.setTextColor(Color.rgb(154,174,183));root.addView(explanation);
+        boolean allowed=checkSelfPermission(Manifest.permission.READ_CALENDAR)==PackageManager.PERMISSION_GRANTED;boolean enabled=prefs.getBoolean("flight_trails",false);long selectedId=prefs.getLong("flight_calendar_id",-1);
+        CheckBox toggle=new CheckBox(this);toggle.setText("Show flight trails");toggle.setTextSize(16);toggle.setTextColor(Color.rgb(220,230,235));toggle.setChecked(enabled);toggle.setOnCheckedChangeListener((button,checked)->{prefs.edit().putBoolean("flight_trails",checked).apply();if(checked&&!allowed)requestPermissions(new String[]{Manifest.permission.READ_CALENDAR},30);else render();});root.addView(toggle);
+        TextView status=text(!allowed?"Calendar access: not allowed":selectedId<0?"Calendar: none selected":"Calendar: "+prefs.getString("flight_calendar_name","Selected calendar"),14);status.setTextColor(allowed&&selectedId>=0?Color.rgb(130,190,165):Color.rgb(210,175,105));root.addView(status);
+        Button calendar=new Button(this);calendar.setText(allowed?"Choose calendar":"Allow calendar access");calendar.setOnClickListener(v->{if(!allowed)requestPermissions(new String[]{Manifest.permission.READ_CALENDAR},30);else chooseCalendar();});root.addView(calendar);
+        if(enabled&&allowed&&selectedId>=0){TextView found=text("Routes recognised now: "+FlightCalendar.count(this,prefs),13);found.setTextColor(Color.rgb(154,174,183));root.addView(found);}
+        int weight=prefs.getInt("flight_trail_width",2);TextView weightLabel=text("Flight-line weight: "+(weight==1?"very fine":weight==2?"fine":weight==3?"medium":"bold"),14);root.addView(weightLabel);
+        SeekBar width=new SeekBar(this);width.setMax(3);width.setProgress(weight-1);width.setOnSeekBarChangeListener(listener(p->{int chosen=p+1;prefs.edit().putInt("flight_trail_width",chosen).apply();weightLabel.setText("Flight-line weight: "+(chosen==1?"very fine":chosen==2?"fine":chosen==3?"medium":"bold"));}));root.addView(width);
+        Button colour=new Button(this);colour.setText("Trail colour");colour.setOnClickListener(v->chooseTrailColour());root.addView(colour);
+    }
+
+    private void chooseCalendar(){
+        if(checkSelfPermission(Manifest.permission.READ_CALENDAR)!=PackageManager.PERMISSION_GRANTED)return;ArrayList<Long> ids=new ArrayList<>();ArrayList<String> labels=new ArrayList<>();String[] projection={CalendarContract.Calendars._ID,CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,CalendarContract.Calendars.ACCOUNT_NAME};
+        try(Cursor cursor=getContentResolver().query(CalendarContract.Calendars.CONTENT_URI,projection,CalendarContract.Calendars.VISIBLE+"=1",null,CalendarContract.Calendars.CALENDAR_DISPLAY_NAME+" COLLATE NOCASE")){if(cursor!=null)while(cursor.moveToNext()){ids.add(cursor.getLong(0));String name=cursor.getString(1),account=cursor.getString(2);labels.add(name+(account==null||account.equals(name)?"":" — "+account));}}catch(Exception ignored){}
+        if(ids.isEmpty()){new android.app.AlertDialog.Builder(this).setTitle("No calendars found").setMessage("Make sure the calendar is visible and synchronised in your Android calendar app.").setPositiveButton("Close",null).show();return;}
+        new android.app.AlertDialog.Builder(this).setTitle("Calendar containing flights").setItems(labels.toArray(new String[0]),(dialog,which)->{prefs.edit().putLong("flight_calendar_id",ids.get(which)).putString("flight_calendar_name",labels.get(which)).putBoolean("flight_trails",true).apply();render();}).setNegativeButton("Cancel",null).show();
+    }
+
+    private void chooseTrailColour(){
+        String[] names={"Glacier","Mint","Lavender","Amber","Coral"};int[] colours={Color.rgb(126,207,214),Color.rgb(133,211,169),Color.rgb(177,159,222),Color.rgb(224,183,105),Color.rgb(224,130,121)};
+        new android.app.AlertDialog.Builder(this).setTitle("Flight-trail colour").setItems(names,(dialog,which)->prefs.edit().putInt("flight_trail_color",colours[which]).apply()).setNegativeButton("Cancel",null).show();
     }
 
     private SeekBar.OnSeekBarChangeListener listener(java.util.function.IntConsumer done) {
@@ -278,6 +313,6 @@ public class SettingsActivity extends Activity {
 
     @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
-        render();
+        if(requestCode==30&&results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED){render();mainHandler.postDelayed(this::chooseCalendar,150);}else render();
     }
 }

@@ -31,10 +31,12 @@ public class RadarWallpaperService extends WallpaperService {
         private int surfaceWidth,surfaceHeight;
         private boolean visible; private double lat=55.6761,lon=12.5683;
         private String radarHost,radarPath; private long lastMeta;
+        private List<FlightCalendar.Leg> flightLegs=Collections.emptyList(); private long lastFlightLoad;
         private SharedPreferences prefs; private LocationManager locations;
         private final Runnable refresh=new Runnable(){
             @Override public void run(){
                 try{
+                    loadFlightTrails();
                     requestBaseMap();
                     drawFrame();
                     String previousPath=radarPath;
@@ -99,6 +101,7 @@ public class RadarWallpaperService extends WallpaperService {
                 int w=Math.min(viewW,900),h=Math.max(1,Math.round(w*(viewH/(float)viewW)));
                 if(isPreview()){
                     frame=TaiwanPreviewRenderer.render(getApplicationContext(),w,h,prefs.getInt("zoom",6),prefs.getString("map_theme","slate"),prefs.getString("palette","night"),prefs.getInt("opacity",72));
+                    FlightCalendar.draw(new Canvas(frame),flightLegs,25.0777,121.2330,prefs.getInt("zoom",6),w,h,viewW,viewH,prefs);
                     postFrame(frame);Bitmap old=lastFrame;lastFrame=frame;frame=null;if(old!=null&&!old.isRecycled())old.recycle();return;
                 }
                 double scale=w/(double)viewW;
@@ -118,6 +121,7 @@ public class RadarWallpaperService extends WallpaperService {
                         if(radar!=null){paint.setAlpha((int)(255*prefs.getInt("opacity",72)/100f));c.drawBitmap(radar,null,new RectF(left,top,left+drawTile,top+drawTile),paint);}
                     }
                 }
+                FlightCalendar.draw(c,flightLegs,lat,lon,z,w,h,viewW,viewH,prefs);
                 paint.setColor(Color.rgb(226,244,249));paint.setAlpha(240);paint.setStyle(Paint.Style.FILL);c.drawCircle(w/2f,h/2f,5,paint);
                 paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);paint.setColor(Color.rgb(22,51,65));c.drawCircle(w/2f,h/2f,9,paint);paint.setStyle(Paint.Style.FILL);
                 postFrame(frame);Bitmap old=lastFrame;lastFrame=frame;frame=null;
@@ -200,6 +204,11 @@ public class RadarWallpaperService extends WallpaperService {
         private double worldY(double latitude,double world){double s=Math.sin(Math.toRadians(Math.max(-85.05,Math.min(85.05,latitude))));return(.5-Math.log((1+s)/(1-s))/(4*Math.PI))*world;}
         private int[] mapThemeColours(String theme){
             return PresetStore.colours(getApplicationContext(),PresetStore.MAP,theme);
+        }
+
+        private void loadFlightTrails(){
+            long now=System.currentTimeMillis();if(now-lastFlightLoad<5*60_000L)return;
+            flightLegs=FlightCalendar.load(getApplicationContext(),prefs,now);lastFlightLoad=now;
         }
 
         private void drawFallback(){
