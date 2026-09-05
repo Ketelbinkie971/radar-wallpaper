@@ -34,9 +34,9 @@ public class RadarWallpaperService extends WallpaperService {
         private String radarHost,radarPath; private long lastMeta;
         private List<FlightCalendar.Leg> flightLegs=Collections.emptyList(); private long lastFlightLoad;
         private SharedPreferences prefs; private LocationManager locations;
-        private FlightCalendar.Leg animatedArrival;private List<FlightCalendar.Leg> arrivalSequence=Collections.emptyList();private int arrivalIndex,unlockChecks;private long animationStarted;private boolean receiverRegistered,animateWholeArrival;private volatile boolean unlockPending;private Bitmap animationFrame,animationBase;
-        private final BroadcastReceiver unlockReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){if(Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){unlockPending=true;unlockChecks=0;if(worker!=null)worker.removeCallbacks(unlockAnimation);}else if(Intent.ACTION_USER_PRESENT.equals(intent.getAction())){unlockPending=true;scheduleUnlockAnimation();}else if(ACTION_REFRESH_TRACKS.equals(intent.getAction())&&worker!=null)worker.post(()->{lastFlightLoad=0;loadFlightTrails();drawFrame();});}};
-        private final Runnable unlockAnimation=new Runnable(){@Override public void run(){if(!visible||!unlockPending)return;android.app.KeyguardManager keyguard=(android.app.KeyguardManager)getSystemService(KEYGUARD_SERVICE);if(keyguard!=null&&keyguard.isKeyguardLocked()){if(unlockChecks++<80&&worker!=null)worker.postDelayed(this,250);return;}unlockPending=false;unlockChecks=0;startArrivalAnimation();}};
+        private FlightCalendar.Leg animatedArrival;private List<FlightCalendar.Leg> arrivalSequence=Collections.emptyList();private int arrivalIndex,unlockChecks;private long animationStarted;private boolean receiverRegistered,animateWholeArrival;private volatile boolean unlockPending,pathsHiddenForUnlock;private Bitmap animationFrame,animationBase;
+        private final BroadcastReceiver unlockReceiver=new BroadcastReceiver(){@Override public void onReceive(Context context,Intent intent){if(Intent.ACTION_SCREEN_OFF.equals(intent.getAction())){unlockPending=true;pathsHiddenForUnlock=true;unlockChecks=0;if(worker!=null){worker.removeCallbacks(unlockAnimation);worker.post(()->{stopArrivalAnimation(false);showCleanFrame();});}}else if(Intent.ACTION_USER_PRESENT.equals(intent.getAction())){unlockPending=true;scheduleUnlockAnimation();}else if(ACTION_REFRESH_TRACKS.equals(intent.getAction())&&worker!=null)worker.post(()->{lastFlightLoad=0;loadFlightTrails();drawFrame();});}};
+        private final Runnable unlockAnimation=new Runnable(){@Override public void run(){if(!visible||!unlockPending)return;android.app.KeyguardManager keyguard=(android.app.KeyguardManager)getSystemService(KEYGUARD_SERVICE);if(keyguard!=null&&keyguard.isKeyguardLocked()){if(unlockChecks++<80&&worker!=null)worker.postDelayed(this,250);return;}unlockPending=false;unlockChecks=0;if(!startArrivalAnimation())restoreHiddenPaths();}};
         private final Runnable nextArrival=this::startNextArrival;
         private final Runnable arrivalAnimation=new Runnable(){@Override public void run(){if(worker==null||!visible||animatedArrival==null){stopArrivalAnimation(false);return;}float progress=Math.min(1f,(SystemClock.uptimeMillis()-animationStarted)/5500f);drawArrivalFrame(progress);if(progress<1f)worker.postDelayed(this,50);else if(arrivalIndex+1<arrivalSequence.size()){commitAnimatedArrival();animatedArrival=null;arrivalIndex++;worker.postDelayed(nextArrival,1000);}else stopArrivalAnimation(true);}};
         private final Runnable refresh=new Runnable(){
@@ -69,7 +69,7 @@ public class RadarWallpaperService extends WallpaperService {
         }
         @Override public void onVisibilityChanged(boolean v){
             visible=v;if(worker==null)return;worker.removeCallbacks(refresh);
-            if(v){startLocation();scheduleUnlockAnimation();worker.postDelayed(refresh,1500);}else{worker.removeCallbacks(unlockAnimation);stopArrivalAnimation(false);stopLocation();}
+            if(v){startLocation();if(pathsHiddenForUnlock)showCleanFrame();scheduleUnlockAnimation();worker.postDelayed(refresh,1500);}else{worker.removeCallbacks(unlockAnimation);stopArrivalAnimation(false);stopLocation();}
         }
         @Override public void onSurfaceChanged(SurfaceHolder h,int f,int w,int he){
             super.onSurfaceChanged(h,f,w,he);surfaceWidth=w;surfaceHeight=he;baseMap=null;
@@ -133,7 +133,7 @@ public class RadarWallpaperService extends WallpaperService {
                 drawLocationMarker(new Canvas(clean),w,h);
                 FlightCalendar.draw(c,flightLegs,lat,lon,z,w,h,viewW,viewH,prefs);
                 drawLocationMarker(c,w,h);
-                if(animationBase==null)postFrame(frame);Bitmap old=lastFrame;lastFrame=frame;frame=null;
+                if(animationBase==null&&!pathsHiddenForUnlock)postFrame(frame);Bitmap old=lastFrame;lastFrame=frame;frame=null;
                 Bitmap oldClean=lastFrameWithoutFlights;lastFrameWithoutFlights=clean;
                 if(old!=null&&old!=baseMap&&!old.isRecycled())old.recycle();
                 recycle(oldClean);
@@ -227,8 +227,8 @@ public class RadarWallpaperService extends WallpaperService {
             flightLegs=FlightCalendar.load(getApplicationContext(),prefs,now);OpenSkyTracks.attachCached(getApplicationContext(),flightLegs);lastFlightLoad=now;
         }
 
-        private void startArrivalAnimation(){
-            if(isPreview()||!visible||!prefs.getBoolean("animate_arrival_unlock",true)||!prefs.getBoolean("flight_trails",false))return;loadFlightTrails();long now=System.currentTimeMillis();FlightCalendar.Leg latest=null;for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(latest==null||leg.end>latest.end))latest=leg;if(latest==null)return;ArrayList<FlightCalendar.Leg> sequence=new ArrayList<>();for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(sameLocalDay(leg.start,latest.end)||sameLocalDay(leg.end,latest.end)))sequence.add(leg);sequence.sort(Comparator.comparingLong(leg->leg.start));if(sequence.isEmpty())return;if(lastFrameWithoutFlights==null)drawFrame();Bitmap clean=lastFrameWithoutFlights;if(clean==null||clean.isRecycled())return;worker.removeCallbacks(refresh);stopArrivalAnimation(false);arrivalSequence=sequence;arrivalIndex=0;animationBase=clean.copy(Bitmap.Config.ARGB_8888,true);animationFrame=Bitmap.createBitmap(clean.getWidth(),clean.getHeight(),Bitmap.Config.ARGB_8888);postFrame(animationBase);startNextArrival();
+        private boolean startArrivalAnimation(){
+            if(isPreview()||!visible||!prefs.getBoolean("animate_arrival_unlock",true)||!prefs.getBoolean("flight_trails",false))return false;loadFlightTrails();long now=System.currentTimeMillis();FlightCalendar.Leg latest=null;for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(latest==null||leg.end>latest.end))latest=leg;if(latest==null)return false;ArrayList<FlightCalendar.Leg> sequence=new ArrayList<>();for(FlightCalendar.Leg leg:flightLegs)if(leg.end<=now&&(sameLocalDay(leg.start,latest.end)||sameLocalDay(leg.end,latest.end)))sequence.add(leg);sequence.sort(Comparator.comparingLong(leg->leg.start));if(sequence.isEmpty())return false;if(lastFrameWithoutFlights==null)drawFrame();Bitmap clean=lastFrameWithoutFlights;if(clean==null||clean.isRecycled())return false;worker.removeCallbacks(refresh);stopArrivalAnimation(false);arrivalSequence=sequence;arrivalIndex=0;animationBase=clean.copy(Bitmap.Config.ARGB_8888,true);animationFrame=Bitmap.createBitmap(clean.getWidth(),clean.getHeight(),Bitmap.Config.ARGB_8888);postFrame(animationBase);startNextArrival();return true;
         }
 
         private void scheduleUnlockAnimation(){if(worker==null||!visible||!unlockPending)return;worker.removeCallbacks(unlockAnimation);worker.postDelayed(unlockAnimation,180);}
@@ -246,7 +246,11 @@ public class RadarWallpaperService extends WallpaperService {
             FlightCalendar.drawCompletedArrival(new Canvas(animationBase),animatedArrival,animateWholeArrival,lat,lon,prefs.getInt("zoom",6),animationBase.getWidth(),animationBase.getHeight(),surfaceWidth,surfaceHeight,prefs);postFrame(animationBase);
         }
 
-        private void stopArrivalAnimation(boolean restore){if(worker!=null){worker.removeCallbacks(arrivalAnimation);worker.removeCallbacks(nextArrival);}animatedArrival=null;animateWholeArrival=false;arrivalSequence=Collections.emptyList();arrivalIndex=0;if(restore&&lastFrame!=null)postFrame(lastFrame);recycle(animationFrame);recycle(animationBase);animationFrame=null;animationBase=null;if(restore&&visible&&worker!=null){worker.removeCallbacks(refresh);worker.post(refresh);}}
+        private void showCleanFrame(){Bitmap clean=lastFrameWithoutFlights;if(clean!=null&&!clean.isRecycled())postFrame(clean);}
+
+        private void restoreHiddenPaths(){pathsHiddenForUnlock=false;if(lastFrame!=null&&!lastFrame.isRecycled())postFrame(lastFrame);}
+
+        private void stopArrivalAnimation(boolean restore){if(worker!=null){worker.removeCallbacks(arrivalAnimation);worker.removeCallbacks(nextArrival);}animatedArrival=null;animateWholeArrival=false;arrivalSequence=Collections.emptyList();arrivalIndex=0;if(restore)restoreHiddenPaths();recycle(animationFrame);recycle(animationBase);animationFrame=null;animationBase=null;if(restore&&visible&&worker!=null){worker.removeCallbacks(refresh);worker.post(refresh);}}
 
         private void recycle(Bitmap bitmap){if(bitmap!=null&&!bitmap.isRecycled()&&bitmap!=baseMap&&bitmap!=lastFrame)bitmap.recycle();}
 
